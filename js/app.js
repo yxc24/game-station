@@ -10,15 +10,14 @@
  * The home page will populate itself automatically.
  */
 const games = [
-  // Example (uncomment when game is ready):
-  // {
-  //   id: "snake",
-  //   title: "Snake",
-  //   genre: "Arcade",
-  //   color: "#1A1A1A",
-  //   path: "games/snake/index.html",
-  //   playtime: "2–5 min"
-  // }
+  {
+    id: "neon-dragon",
+    title: "Neon Dragon",
+    genre: "Arcade",
+    color: "#050505",
+    path: "games/neon-dragon/index.html",
+    playtime: "5–15 min"
+  }
 ];
 
 /* ---- DOM references ---- */

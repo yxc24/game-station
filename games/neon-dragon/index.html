@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON DRAGON: HYPERDRIVE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(255, 0, 85, 0.3); /* Default to red/deadly */
+            border: 2px solid #ff0055;
+            transition: all 0.3s ease;
+        }
+
+        canvas {
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
+            display: block;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+        }
+
+        .glitch-text {
+            animation: glitch 1s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+
+        .menu-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+        
+        .hidden { opacity: 0; pointer-events: none; }
+
+        button.cyber-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #0ff;
+            color: #0ff;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        button.cyber-btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        button.cyber-btn:active {
+            transform: translateY(2px);
+        }
+
+        .score-hud {
+            text-shadow: 0 0 10px #fff;
+        }
+
+        /* Ability Button States */
+        .ability-ready {
+            border-color: #0ff !important;
+            color: #0ff !important;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4) !important;
+        }
+        
+        .ability-cooldown {
+            border-color: #444 !important;
+            color: #666 !important;
+            box-shadow: none !important;
+        }
+
+        .shoot-btn.ability-ready {
+            border-color: #ff4400 !important;
+            color: #ff4400 !important;
+            box-shadow: 0 0 15px rgba(255, 68, 0, 0.4) !important;
+        }
+
+        .bomb-btn.ability-ready {
+            border-color: #ff00ff !important;
+            color: #ff00ff !important;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4) !important;
+        }
+
+        .bomb-btn:active {
+            background: #ff00ff !important;
+            color: white !important;
+        }
+        
+        .shoot-btn:active {
+            background: #ff4400 !important;
+            color: white !important;
+        }
+
+        /* Control Bar styling */
+        .control-bar {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 0 10px;
+        }
+
+        /* Settings UI */
+        .setting-group {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .setting-label {
+            color: #888;
+            font-size: 10px;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .setting-options {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .option-btn {
+            background: transparent;
+            border: 1px solid #444;
+            color: #666;
+            padding: 5px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+        .option-btn.active {
+            border-color: #0ff;
+            color: #0ff;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex flex-col items-center justify-center">
+
+    <!-- Game Container -->
+    <div id="game-container" class="rounded-lg overflow-hidden relative">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- HUD -->
+        <div class="ui-overlay">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="text-[10px] text-cyan-400 tracking-widest">SCORE</div>
+                    <div id="scoreVal" class="text-3xl font-bold score-hud">0</div>
+                </div>
+                <!-- Wall Status Indicator -->
+                <div id="wallStatus" class="absolute top-4 left-0 right-0 text-center text-[10px] tracking-[0.3em] font-bold text-red-500 opacity-80">
+                    WALLS: DEADLY
+                </div>
+                <div class="text-right">
+                    <div class="text-[10px] text-pink-500 tracking-widest">HIGH SCORE</div>
+                    <div id="highScoreVal" class="text-xl font-bold text-pink-400">0</div>
+                </div>
+            </div>
+            
+            <!-- Boss Warning HUD -->
+            <div id="bossWarning" class="hidden absolute top-1/3 left-0 right-0 text-center pointer-events-none">
+                <h2 class="text-4xl font-black text-red-600 glitch-text" style="text-shadow: 0 0 30px red">WARNING<br>BOSS DETECTED</h2>
+            </div>
+            
+            <!-- Safe Mode Indicator -->
+            <div id="safeMode" class="hidden absolute bottom-1/3 left-0 right-0 text-center pointer-events-none">
+                <span class="text-sm font-bold text-blue-400 tracking-widest bg-black/50 px-2 py-1 rounded border border-blue-500">SHIELD ACTIVE</span>
+            </div>
+        </div>
+
+        <!-- Menus -->
+        <div id="menu" class="menu-overlay">
+            <h1 class="text-5xl md:text-6xl font-black mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600 glitch-text" style="filter: drop-shadow(0 0 10px rgba(0,255,255,0.5));">
+                NEON<br>DRAGON
+            </h1>
+            
+            <!-- Settings -->
+            <div class="w-full max-w-xs mb-8">
+                <!-- Speed Setting -->
+                <div class="setting-group">
+                    <span class="setting-label">SPEED LEVEL</span>
+                    <div class="setting-options" id="speedOptions">
+                        <button class="option-btn" onclick="setSpeed(5, this)">SLO-MO</button>
+                        <button class="option-btn active" onclick="setSpeed(8, this)">NORMAL</button>
+                        <button class="option-btn" onclick="setSpeed(12, this)">FAST</button>
+                        <button class="option-btn" onclick="setSpeed(18, this)">HYPER</button>
+                    </div>
+                </div>
+
+                <!-- Wall Setting -->
+                <div class="setting-group">
+                    <span class="setting-label">WALL PHYSICS</span>
+                    <div class="setting-options" id="wallOptions">
+                        <button class="option-btn active" onclick="setWalls(true, this)">DEADLY</button>
+                        <button class="option-btn" onclick="setWalls(false, this)">WRAP</button>
+                    </div>
+                    <div class="mt-2 text-[10px] text-gray-400 italic" id="wallDesc">
+                        Hit walls and die.
+                    </div>
+                </div>
+            </div>
+
+            <button class="cyber-btn py-3 px-8 text-xl w-full max-w-xs" onclick="startGame()">INITIALIZE</button>
+        </div>
+        
+        <div id="gameOver" class="menu-overlay hidden">
+            <h2 class="text-5xl font-bold text-red-500 mb-2 glitch-text" style="text-shadow: 0 0 20px red;">SYSTEM<br>FAILURE</h2>
+            <p id="finalScore" class="text-white text-xl mb-8">SCORE: 0</p>
+            <button class="cyber-btn py-3 px-8 text-xl" style="border-color: #ff0055; color: #ff0055;" onclick="showMenu()">MAIN MENU</button>
+        </div>
+    </div>
+
+    <!-- External Controls Bar -->
+    <div class="control-bar">
+        <button id="reverseBtn" class="cyber-btn flex-1 py-4 rounded text-sm font-bold bg-black" onclick="triggerReverse()">
+            <span class="block text-[9px] opacity-50 mb-1">SHIFT</span>
+            ↺ REV
+        </button>
+        <button id="bombBtn" class="cyber-btn bomb-btn flex-1 py-4 rounded text-sm font-bold bg-black" onclick="triggerBomb()">
+            <span class="block text-[9px] opacity-50 mb-1">KEY 'B'</span>
+            💣 BOMB
+        </button>
+        <button id="shootBtn" class="cyber-btn shoot-btn flex-1 py-4 rounded text-sm font-bold bg-black" onclick="triggerShoot()">
+            <span class="block text-[9px] opacity-50 mb-1">KEY 'F'</span>
+            🔥 SHOOT
+        </button>
+    </div>
+
+    <div class="mt-2 text-center opacity-40 text-[10px] tracking-[0.2em] text-gray-400 uppercase">
+        Space: Dash • Arrows/Swipe: Move
+    </div>
+
+    <script>
+        /**
+         * ENGINE SETUP
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const GRID_SIZE = 25;
+        let TILE_COUNT = 20; 
+        
+        // Settings State
+        let SETTING_SPEED = 8; // Default Normal
+        let SETTING_WALLS_DEADLY = true;
+
+        // Game State
+        let isGameActive = false; 
+        let snake = [];
+        let velocity = { x: 0, y: 0 };
+        let food = {};
+        let monsters = [];
+        let bombs = [];
+        let boss = null;
+        let nextBossThreshold = 300;
+        let fireballs = [];
+        let particles = [];
+        let floaters = []; 
+        let score = 0;
+        let highScore = localStorage.getItem('neonSnakeHighScore') || 0;
+        let gameLoopId;
+        let lastTime = 0;
+        let shakeIntensity = 0;
+        let isDashing = false;
+        let hue = 0; 
+        let time = 0; 
+        let isInvulnerable = false; 
+        
+        let lastMonsterSpawn = 0;
+        const MONSTER_SPAWN_RATE = 5000;
+
+        // Ability State
+        let lastReverseTime = -10000; 
+        const REVERSE_COOLDOWN = 3000; 
+        let lastShootTime = 0;
+        const SHOOT_COOLDOWN = 150; 
+        let lastBombTime = -10000;
+        const BOMB_COOLDOWN = 5000;
+
+        let inputQueue = [];
+
+        const FOOD_TYPES = [
+            { icon: '💎', color: '#00ffff', points: 50 },
+            { icon: '⚡', color: '#ffee00', points: 20 },
+            { icon: '🔮', color: '#ff00ff', points: 30 },
+            { icon: '🥩', color: '#ff4444', points: 10 }
+        ];
+
+        document.getElementById('highScoreVal').innerText = highScore;
+        resize();
+        window.addEventListener('resize', resize);
+
+        function setSpeed(val, el) {
+            SETTING_SPEED = val;
+            document.getElementById('speedOptions').querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function setWalls(isDeadly, el) {
+            SETTING_WALLS_DEADLY = isDeadly;
+            document.getElementById('wallOptions').querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            
+            // Visual Updates
+            updateWallVisuals();
+            
+            // Description
+            const desc = document.getElementById('wallDesc');
+            if (isDeadly) desc.innerText = "Hit walls and die.";
+            else desc.innerText = "Teleport through walls.";
+        }
+
+        function updateWallVisuals() {
+            const container = document.getElementById('game-container');
+            const status = document.getElementById('wallStatus');
+            
+            if (SETTING_WALLS_DEADLY) {
+                container.style.borderColor = "#ff0055";
+                container.style.boxShadow = "0 0 30px rgba(255, 0, 85, 0.3)";
+                status.innerText = "WALLS: DEADLY";
+                status.classList.remove('text-cyan-400');
+                status.classList.add('text-red-500');
+            } else {
+                container.style.borderColor = "#00ffff";
+                container.style.boxShadow = "0 0 30px rgba(0, 255, 255, 0.3)";
+                status.innerText = "WALLS: WRAP";
+                status.classList.remove('text-red-500');
+                status.classList.add('text-cyan-400');
+            }
+        }
+
+        function resize() {
+            const availableHeight = window.innerHeight - 140;
+            const availableWidth = window.innerWidth - 20;
+            let size = Math.min(availableWidth, availableHeight, 600);
+            size = Math.max(size, 250);
+            size = Math.floor(size / GRID_SIZE) * GRID_SIZE; 
+            canvas.width = size;
+            canvas.height = size;
+            TILE_COUNT = size / GRID_SIZE;
+            if (!isGameActive) drawGrid(); 
+        }
+
+        /**
+         * GAME LOGIC
+         */
+        function showMenu() {
+            isGameActive = false;
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+        }
+
+        function startGame() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('bossWarning').classList.add('hidden');
+            document.getElementById('safeMode').classList.remove('hidden');
+            
+            const cx = Math.floor(TILE_COUNT / 2);
+            const cy = Math.floor(TILE_COUNT / 2) - 2; 
+            
+            snake = [
+                {x: cx, y: cy},
+                {x: cx, y: cy + 1},
+                {x: cx, y: cy + 2}
+            ];
+            velocity = { x: 0, y: -1 }; 
+            inputQueue = [];
+            score = 0;
+            monsters = [];
+            bombs = [];
+            boss = null;
+            nextBossThreshold = 300;
+            fireballs = [];
+            particles = [];
+            floaters = [];
+            shakeIntensity = 0;
+            lastMonsterSpawn = performance.now();
+            updateScore(0);
+            spawnFood();
+            
+            // Sync UI visuals
+            updateWallVisuals();
+
+            lastReverseTime = -10000;
+            lastBombTime = -10000;
+            
+            isInvulnerable = true;
+            setTimeout(() => {
+                isInvulnerable = false;
+                document.getElementById('safeMode').classList.add('hidden');
+            }, 1000);
+
+            isGameActive = true;
+            
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+            lastTime = performance.now();
+            requestAnimationFrame(loop);
+        }
+
+        function spawnFood() {
+            let valid = false;
+            let attempts = 0;
+            while (!valid && attempts < 50) {
+                attempts++;
+                food = {
+                    x: Math.floor(Math.random() * TILE_COUNT),
+                    y: Math.floor(Math.random() * TILE_COUNT),
+                    type: FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)]
+                };
+                valid = true;
+                for (let part of snake) {
+                    if (part.x === food.x && part.y === food.y) { valid = false; break; }
+                }
+                if (boss && food.x >= boss.x && food.x < boss.x + 2 && food.y >= boss.y && food.y < boss.y + 2) {
+                    valid = false;
+                }
+            }
+        }
+
+        function spawnBoss() {
+            let bx, by, valid = false;
+            for(let i=0; i<50; i++) {
+                bx = Math.floor(Math.random() * (TILE_COUNT - 2));
+                by = Math.floor(Math.random() * (TILE_COUNT - 2));
+                let dist = Math.abs(bx - snake[0].x) + Math.abs(by - snake[0].y);
+                if (dist > 8) { valid = true; break; }
+            }
+            if(!valid) { bx = 0; by = 0; }
+
+            boss = {
+                x: bx, y: by, w: 2, h: 2,
+                hp: 10, maxHp: 10,
+                lastMove: performance.now(),
+                moveSpeed: 800,
+                color: '#880000'
+            };
+
+            const warningEl = document.getElementById('bossWarning');
+            warningEl.classList.remove('hidden');
+            setTimeout(() => warningEl.classList.add('hidden'), 3000);
+            
+            shakeIntensity = 20;
+            createFloater("BOSS APPROACHING!", bx * GRID_SIZE, by * GRID_SIZE, '#ff0000');
+        }
+
+        function spawnMonster() {
+            let mx, my, dist;
+            do {
+                mx = Math.floor(Math.random() * TILE_COUNT);
+                my = Math.floor(Math.random() * TILE_COUNT);
+                dist = Math.abs(mx - snake[0].x) + Math.abs(my - snake[0].y);
+            } while (dist < 5);
+
+            monsters.push({
+                x: mx, y: my,
+                moveTimer: 0,
+                moveSpeed: Math.random() * 200 + 400,
+                color: '#ff0055'
+            });
+        }
+
+        function loop(timestamp) {
+            if (!isGameActive) return; 
+
+            const deltaTime = timestamp - lastTime;
+            time = timestamp;
+            const targetSpeed = isDashing ? SETTING_SPEED * 2 : SETTING_SPEED;
+            
+            if (deltaTime >= 1000 / targetSpeed) {
+                update(); 
+                lastTime = timestamp;
+            }
+
+            if (!isGameActive) return; 
+
+            if (score >= nextBossThreshold && !boss) {
+                spawnBoss();
+                nextBossThreshold += 500;
+            }
+
+            if (timestamp - lastMonsterSpawn > MONSTER_SPAWN_RATE) {
+                spawnMonster();
+                lastMonsterSpawn = timestamp;
+            }
+            
+            updateFireballs();
+            updateMonsters(deltaTime);
+            updateBoss(timestamp);
+            updateBombs(timestamp);
+
+            if (!isGameActive) return; 
+
+            draw();
+            updateHUD(timestamp); 
+
+            hue = (hue + 1) % 360;
+            
+            if (shakeIntensity > 0) shakeIntensity *= 0.9;
+            if (shakeIntensity < 0.5) shakeIntensity = 0;
+
+            gameLoopId = requestAnimationFrame(loop);
+        }
+
+        // --- ABILITIES ---
+
+        function triggerReverse() {
+            if (!isGameActive) return;
+            const now = performance.now();
+            if (now - lastReverseTime < REVERSE_COOLDOWN) return;
+            if (snake.length < 2) return; 
+
+            lastReverseTime = now;
+            snake.reverse();
+            const head = snake[0];
+            const neck = snake[1];
+            velocity.x = head.x - neck.x;
+            velocity.y = head.y - neck.y;
+            inputQueue = [];
+            shakeIntensity = 15;
+            createExplosion(head.x * GRID_SIZE + GRID_SIZE/2, head.y * GRID_SIZE + GRID_SIZE/2, '#ffffff');
+            createFloater("TIME WARP!", head.x * GRID_SIZE, head.y * GRID_SIZE, '#ffffff');
+        }
+
+        function triggerShoot() {
+            if (!isGameActive) return;
+            const now = performance.now();
+            if (now - lastShootTime < SHOOT_COOLDOWN) return;
+            lastShootTime = now;
+
+            let vx = velocity.x;
+            let vy = velocity.y;
+            if (vx === 0 && vy === 0) vy = -1;
+
+            fireballs.push({
+                x: snake[0].x, y: snake[0].y,
+                vx: vx, vy: vy,
+                timer: 0
+            });
+            shakeIntensity = 2;
+        }
+
+        function triggerBomb() {
+            if (!isGameActive) return;
+            const now = performance.now();
+            if (now - lastBombTime < BOMB_COOLDOWN) return;
+            lastBombTime = now;
+
+            bombs.push({
+                x: snake[0].x,
+                y: snake[0].y,
+                detonationTime: now + 2000,
+                range: 4
+            });
+            createFloater("BOMB PLANTED", snake[0].x * GRID_SIZE, snake[0].y * GRID_SIZE, '#ff00ff');
+        }
+
+        // --- UPDATE FUNCTIONS ---
+
+        function updateBombs(now) {
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                const bomb = bombs[i];
+                if (now >= bomb.detonationTime) {
+                    bombs.splice(i, 1);
+                    shakeIntensity = 30;
+                    const bx = bomb.x * GRID_SIZE + GRID_SIZE/2;
+                    const by = bomb.y * GRID_SIZE + GRID_SIZE/2;
+                    createExplosion(bx, by, '#ff00ff');
+                    createExplosion(bx, by, '#ffffff');
+                    
+                    for (let m = monsters.length - 1; m >= 0; m--) {
+                        let mon = monsters[m];
+                        let dist = Math.sqrt(Math.pow(mon.x - bomb.x, 2) + Math.pow(mon.y - bomb.y, 2));
+                        if (dist <= bomb.range) {
+                            monsters.splice(m, 1);
+                            score += 100;
+                            createExplosion(mon.x * GRID_SIZE, mon.y * GRID_SIZE, '#ff0000');
+                            createFloater("BOOM!", mon.x * GRID_SIZE, mon.y * GRID_SIZE, '#ff00ff');
+                        }
+                    }
+                    
+                    if (boss) {
+                        let bossCx = boss.x + 1; 
+                        let bossCy = boss.y + 1;
+                        let dist = Math.sqrt(Math.pow(bossCx - bomb.x, 2) + Math.pow(bossCy - bomb.y, 2));
+                        if (dist <= bomb.range) {
+                            boss.hp -= 3;
+                            createFloater("-3 HP", boss.x * GRID_SIZE, boss.y * GRID_SIZE, '#ff00ff');
+                            if (boss.hp <= 0) {
+                                score += 500;
+                                boss = null;
+                                createFloater("BOSS DEFEATED!", bx, by, '#ffff00');
+                            }
+                        }
+                    }
+                    updateScore(score);
+                }
+            }
+        }
+
+        function updateHUD(now) {
+            const revBtn = document.getElementById('reverseBtn');
+            const revTimeLeft = Math.max(0, REVERSE_COOLDOWN - (now - lastReverseTime));
+            if (revTimeLeft > 0) {
+                revBtn.classList.remove('ability-ready');
+                revBtn.classList.add('ability-cooldown');
+                revBtn.innerHTML = `<span class="block text-[9px] opacity-50 mb-1">WAIT</span>${(revTimeLeft/1000).toFixed(1)}s`;
+            } else {
+                revBtn.classList.add('ability-ready');
+                revBtn.classList.remove('ability-cooldown');
+                revBtn.innerHTML = `<span class="block text-[9px] opacity-50 mb-1">SHIFT</span>↺ REV`;
+            }
+            
+            const bombBtn = document.getElementById('bombBtn');
+            const bombTimeLeft = Math.max(0, BOMB_COOLDOWN - (now - lastBombTime));
+            if (bombTimeLeft > 0) {
+                bombBtn.classList.remove('ability-ready');
+                bombBtn.classList.add('ability-cooldown');
+                bombBtn.innerHTML = `<span class="block text-[9px] opacity-50 mb-1">WAIT</span>${(bombTimeLeft/1000).toFixed(1)}s`;
+            } else {
+                bombBtn.classList.add('ability-ready');
+                bombBtn.classList.remove('ability-cooldown');
+                bombBtn.innerHTML = `<span class="block text-[9px] opacity-50 mb-1">KEY 'B'</span>💣 BOMB`;
+            }
+        }
+
+        function updateBoss(now) {
+            if (!boss) return;
+            if (now - boss.lastMove > boss.moveSpeed) {
+                boss.lastMove = now;
+                const head = snake[0];
+                let dx = head.x - (boss.x + 0.5); 
+                let dy = head.y - (boss.y + 0.5);
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 0) boss.x++; else boss.x--;
+                } else {
+                    if (dy > 0) boss.y++; else boss.y--;
+                }
+
+                if (boss.x < 0) boss.x = 0;
+                if (boss.x > TILE_COUNT - 2) boss.x = TILE_COUNT - 2;
+                if (boss.y < 0) boss.y = 0;
+                if (boss.y > TILE_COUNT - 2) boss.y = TILE_COUNT - 2;
+
+                if (head.x >= boss.x && head.x < boss.x + 2 &&
+                    head.y >= boss.y && head.y < boss.y + 2) {
+                    gameOver();
+                }
+            }
+        }
+
+        function update() {
+            if (inputQueue.length > 0) {
+                const nextDir = inputQueue.shift();
+                if (nextDir.x !== -velocity.x && nextDir.y !== -velocity.y) {
+                    velocity = nextDir;
+                }
+            }
+
+            const head = { x: snake[0].x + velocity.x, y: snake[0].y + velocity.y };
+
+            if (SETTING_WALLS_DEADLY) {
+                if (head.x < 0 || head.x >= TILE_COUNT || head.y < 0 || head.y >= TILE_COUNT) {
+                    if (isInvulnerable) {
+                        if (head.x < 0) head.x = TILE_COUNT - 1;
+                        else if (head.x >= TILE_COUNT) head.x = 0;
+                        if (head.y < 0) head.y = TILE_COUNT - 1;
+                        else if (head.y >= TILE_COUNT) head.y = 0;
+                    } else {
+                        gameOver(); return;
+                    }
+                }
+            } else {
+                if (head.x < 0) head.x = TILE_COUNT - 1;
+                else if (head.x >= TILE_COUNT) head.x = 0;
+                if (head.y < 0) head.y = TILE_COUNT - 1;
+                else if (head.y >= TILE_COUNT) head.y = 0;
+            }
+
+            for (let part of snake) {
+                if (head.x === part.x && head.y === part.y) {
+                    if (!isInvulnerable) { gameOver(); return; }
+                }
+            }
+            
+            for (let m of monsters) {
+                if (head.x === m.x && head.y === m.y) {
+                    if (!isInvulnerable) { gameOver(); return; }
+                }
+            }
+
+            if (boss) {
+                if (head.x >= boss.x && head.x < boss.x + 2 &&
+                    head.y >= boss.y && head.y < boss.y + 2) {
+                    if (!isInvulnerable) { gameOver(); return; }
+                }
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += food.type.points;
+                shakeIntensity = 10;
+                createExplosion(head.x * GRID_SIZE + GRID_SIZE/2, head.y * GRID_SIZE + GRID_SIZE/2, food.type.color);
+                createFloater(`+${food.type.points}`, head.x * GRID_SIZE, head.y * GRID_SIZE, food.type.color);
+                updateScore(score);
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function updateMonsters(deltaTime) {
+            const now = performance.now();
+            for (let m of monsters) {
+                if (now - (m.lastMove || 0) > m.moveSpeed) {
+                    m.lastMove = now;
+                    
+                    if (Math.random() < 0.25) {
+                        if (snake[0].x > m.x) m.x++;
+                        else if (snake[0].x < m.x) m.x--;
+                        else if (snake[0].y > m.y) m.y++;
+                        else if (snake[0].y < m.y) m.y--;
+                    } else {
+                        const dirs = [{x:0, y:1}, {x:0, y:-1}, {x:1, y:0}, {x:-1, y:0}];
+                        const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                        m.x += dir.x; m.y += dir.y;
+                    }
+                    
+                    if (m.x < 0) m.x = 0; if (m.x >= TILE_COUNT) m.x = TILE_COUNT - 1;
+                    if (m.y < 0) m.y = 0; if (m.y >= TILE_COUNT) m.y = TILE_COUNT - 1;
+                    
+                    if (m.x === snake[0].x && m.y === snake[0].y) {
+                        if (!isInvulnerable) gameOver();
+                    }
+                }
+            }
+        }
+
+        function updateFireballs() {
+            for (let i = fireballs.length - 1; i >= 0; i--) {
+                let fb = fireballs[i];
+                fb.timer++;
+                
+                if (fb.timer > 2) { 
+                    fb.timer = 0;
+                    fb.x += fb.vx;
+                    fb.y += fb.vy;
+                    
+                    if (fb.x < 0 || fb.x >= TILE_COUNT || fb.y < 0 || fb.y >= TILE_COUNT) {
+                        fireballs.splice(i, 1);
+                        createExplosion(fb.x * GRID_SIZE, fb.y * GRID_SIZE, '#ffaa00');
+                        continue;
+                    }
+
+                    if (boss) {
+                        if (fb.x >= boss.x && fb.x < boss.x + 2 &&
+                            fb.y >= boss.y && fb.y < boss.y + 2) {
+                            
+                            boss.hp--;
+                            fireballs.splice(i, 1);
+                            createExplosion(fb.x * GRID_SIZE + GRID_SIZE/2, fb.y * GRID_SIZE + GRID_SIZE/2, '#ff0000');
+                            shakeIntensity = 5;
+
+                            if (boss.hp <= 0) {
+                                score += 500;
+                                updateScore(score);
+                                createExplosion(boss.x * GRID_SIZE + GRID_SIZE, boss.y * GRID_SIZE + GRID_SIZE, '#ff0000');
+                                createFloater("BOSS DEFEATED!", boss.x * GRID_SIZE, boss.y * GRID_SIZE, '#ffff00');
+                                boss = null;
+                            } else {
+                                createFloater("-1", fb.x * GRID_SIZE, fb.y * GRID_SIZE, '#fff');
+                            }
+                            continue;
+                        }
+                    }
+                    
+                    let hit = false;
+                    for (let mIndex = monsters.length - 1; mIndex >= 0; mIndex--) {
+                        let m = monsters[mIndex];
+                        if (fb.x === m.x && fb.y === m.y) {
+                            monsters.splice(mIndex, 1);
+                            fireballs.splice(i, 1);
+                            hit = true;
+                            score += 100;
+                            updateScore(score);
+                            createExplosion(m.x * GRID_SIZE + GRID_SIZE/2, m.y * GRID_SIZE + GRID_SIZE/2, '#ff0000');
+                            createFloater("DESTROYED!", m.x * GRID_SIZE, m.y * GRID_SIZE, '#ff0000');
+                            shakeIntensity = 5;
+                            break;
+                        }
+                    }
+                    if (hit) continue;
+                }
+            }
+        }
+
+        function gameOver() {
+            isGameActive = false; // Stop the loop logic immediately
+            cancelAnimationFrame(gameLoopId);
+            document.getElementById('gameOver').classList.remove('hidden');
+            document.getElementById('finalScore').innerText = `SCORE: ${score}`;
+            document.getElementById('bossWarning').classList.add('hidden');
+            document.getElementById('safeMode').classList.add('hidden');
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('neonSnakeHighScore', highScore);
+                document.getElementById('highScoreVal').innerText = highScore;
+            }
+        }
+
+        /**
+         * RENDERER
+         */
+        function draw() {
+            ctx.save();
+            if (shakeIntensity > 0) {
+                const dx = (Math.random() - 0.5) * shakeIntensity;
+                const dy = (Math.random() - 0.5) * shakeIntensity;
+                ctx.translate(dx, dy);
+            }
+
+            ctx.fillStyle = 'rgba(10, 10, 16, 0.8)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid();
+            drawBombs();
+            drawFood();
+            drawMonsters();
+            drawBoss();
+            drawFireballs();
+            drawSnake();
+            drawParticles();
+            drawFloaters();
+
+            ctx.restore();
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = `rgba(0, 255, 255, ${0.05 + Math.sin(hue/20)*0.02})`;
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.height; y += GRID_SIZE) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+        }
+
+        function drawSnake() {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+            
+            if (isInvulnerable && Math.floor(performance.now() / 100) % 2 === 0) {
+                 ctx.globalAlpha = 0.5;
+            }
+
+            ctx.beginPath();
+            if (snake.length > 0) {
+                const headX = snake[0].x * GRID_SIZE + GRID_SIZE/2;
+                const headY = snake[0].y * GRID_SIZE + GRID_SIZE/2;
+                ctx.moveTo(headX, headY);
+                for (let i = 1; i < snake.length; i++) {
+                    const px = snake[i].x * GRID_SIZE + GRID_SIZE/2;
+                    const py = snake[i].y * GRID_SIZE + GRID_SIZE/2;
+                    if (Math.abs(snake[i].x - snake[i-1].x) > 1 || Math.abs(snake[i].y - snake[i-1].y) > 1) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+            }
+            ctx.lineWidth = GRID_SIZE * 0.6;
+            ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+            ctx.stroke();
+            ctx.lineWidth = GRID_SIZE * 0.2;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            if (snake.length > 0) {
+                ctx.font = `${GRID_SIZE}px serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const hx = snake[0].x * GRID_SIZE + GRID_SIZE/2;
+                const hy = snake[0].y * GRID_SIZE + GRID_SIZE/2;
+                ctx.save();
+                ctx.translate(hx, hy);
+                if (velocity.x === 1) ctx.scale(-1, 1); 
+                if (velocity.y === -1) ctx.rotate(-Math.PI/2); 
+                if (velocity.y === 1) ctx.rotate(Math.PI/2);
+                ctx.fillText("🐉", 0, 4); 
+                ctx.restore();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawBombs() {
+            const now = performance.now();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${GRID_SIZE}px serif`;
+            
+            for(let b of bombs) {
+                const x = b.x * GRID_SIZE + GRID_SIZE/2;
+                const y = b.y * GRID_SIZE + GRID_SIZE/2;
+                
+                const timeLeft = b.detonationTime - now;
+                const flashSpeed = Math.max(50, timeLeft / 10);
+                
+                const scale = 1 + Math.sin(now/flashSpeed) * 0.2;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(scale, scale);
+                ctx.fillText("💣", 0, 4);
+                
+                ctx.strokeStyle = `rgba(255, 0, 255, ${Math.sin(now/100)*0.5 + 0.5})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, b.range * GRID_SIZE, 0, Math.PI*2);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+
+        function drawBoss() {
+            if (!boss) return;
+            const x = boss.x * GRID_SIZE;
+            const y = boss.y * GRID_SIZE;
+            const size = GRID_SIZE * 2;
+            const cx = x + size/2;
+            const cy = y + size/2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(time / 500);
+            ctx.strokeStyle = `rgba(255, 0, 0, 0.5)`;
+            ctx.lineWidth = 3;
+            const shieldSize = size/1.5 + Math.sin(time/200)*5;
+            ctx.beginPath();
+            for(let i=0; i<6; i++) {
+                ctx.rotate(Math.PI/3); ctx.moveTo(shieldSize, 0); ctx.lineTo(shieldSize, 10);
+            }
+            ctx.stroke();
+            ctx.rotate(-time / 500);
+            const scale = 1 + Math.sin(time / 150) * 0.15;
+            ctx.scale(scale, scale);
+            ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 40 + Math.random()*20;
+            ctx.font = `${size}px serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText("👹", 0, 4);
+            ctx.restore();
+
+            const hpPct = boss.hp / boss.maxHp;
+            ctx.fillStyle = '#000'; ctx.fillRect(x, y-15, size, 8);
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(x, y-15, size * hpPct, 8);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(x, y-15, size, 8);
+        }
+
+        function drawFood() {
+            const x = food.x * GRID_SIZE + GRID_SIZE/2;
+            const y = food.y * GRID_SIZE + GRID_SIZE/2;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = food.type.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+            const ringSize = (GRID_SIZE/2) + Math.sin(time/200) * 3;
+            ctx.beginPath(); ctx.arc(0, 0, ringSize, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1.0;
+            const scale = 1 + Math.sin(time/150) * 0.2;
+            ctx.scale(scale, scale);
+            ctx.shadowColor = food.type.color; ctx.shadowBlur = 30;
+            ctx.font = `${GRID_SIZE}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(food.type.icon, 0, 4);
+            ctx.restore(); ctx.shadowBlur = 0;
+        }
+
+        function drawMonsters() {
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `${GRID_SIZE}px serif`;
+            for(let m of monsters) {
+                const x = m.x * GRID_SIZE + GRID_SIZE/2;
+                const y = m.y * GRID_SIZE + GRID_SIZE/2;
+                ctx.save(); ctx.translate(x, y);
+                ctx.strokeStyle = m.color; ctx.lineWidth = 1; ctx.beginPath();
+                const spikes = 8; const outer = GRID_SIZE/1.5; const inner = GRID_SIZE/2.5;
+                ctx.rotate(time / 1000);
+                for(let i=0; i<spikes*2; i++) {
+                    const r = (i%2 === 0) ? outer : inner; const a = (Math.PI * i) / spikes;
+                    ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+                }
+                ctx.closePath(); ctx.stroke();
+                ctx.rotate(-time / 1000);
+                ctx.globalCompositeOperation = 'screen';
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)'; ctx.fillText("👾", Math.sin(time/50)*2, 4);
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.7)'; ctx.fillText("👾", -Math.sin(time/50)*2, 4);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.restore();
+            }
+        }
+
+        function drawFireballs() {
+            ctx.fillStyle = '#ffaa00'; ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 15;
+            for(let fb of fireballs) {
+                const x = fb.x * GRID_SIZE + GRID_SIZE/2; const y = fb.y * GRID_SIZE + GRID_SIZE/2;
+                ctx.beginPath(); ctx.arc(x, y, GRID_SIZE/3, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({x: x, y: y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 1.0, color: color, size: Math.random() * 4 + 2});
+            }
+        }
+
+        function drawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.05; p.size *= 0.95;
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        function createFloater(text, x, y, color) {
+            floaters.push({text: text, x: x + GRID_SIZE/2, y: y, life: 1.0, color: color});
+        }
+
+        function drawFloaters() {
+            ctx.font = "bold 16px Orbitron"; ctx.textAlign = "center";
+            for (let i = floaters.length - 1; i >= 0; i--) {
+                let f = floaters[i]; f.y -= 1; f.life -= 0.02;
+                if (f.life <= 0) { floaters.splice(i, 1); continue; }
+                ctx.fillStyle = f.color; ctx.globalAlpha = f.life; ctx.fillText(f.text, f.x, f.y);
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        function updateScore(val) { document.getElementById('scoreVal').innerText = val; }
+
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space') isDashing = true;
+            if (e.key === 'Shift') triggerReverse();
+            if (e.code === 'KeyF' || e.code === 'Enter') triggerShoot();
+            if (e.code === 'KeyB') triggerBomb();
+            
+            const lastInput = inputQueue.length > 0 ? inputQueue[inputQueue.length-1] : velocity;
+            switch(e.key) {
+                case 'ArrowUp': if (lastInput.y !== 1) inputQueue.push({x: 0, y: -1}); break;
+                case 'ArrowDown': if (lastInput.y !== -1) inputQueue.push({x: 0, y: 1}); break;
+                case 'ArrowLeft': if (lastInput.x !== 1) inputQueue.push({x: -1, y: 0}); break;
+                case 'ArrowRight': if (lastInput.x !== -1) inputQueue.push({x: 1, y: 0}); break;
+            }
+        });
+
+        window.addEventListener('keyup', e => { if (e.code === 'Space') isDashing = false; });
+
+        let touchStart = {x:0, y:0};
+        const canvasEl = document.getElementById('game-container');
+        canvasEl.addEventListener('touchstart', e => {
+            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            isDashing = true;
+        }, {passive: false});
+
+        canvasEl.addEventListener('touchend', e => {
+            isDashing = false;
+            const touchEnd = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            const dx = touchEnd.x - touchStart.x; const dy = touchEnd.y - touchStart.y;
+            const lastInput = inputQueue.length > 0 ? inputQueue[inputQueue.length-1] : velocity;
+            if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 0 && lastInput.x !== -1) inputQueue.push({x: 1, y: 0});
+                    else if (dx < 0 && lastInput.x !== 1) inputQueue.push({x: -1, y: 0});
+                } else {
+                    if (dy > 0 && lastInput.y !== -1) inputQueue.push({x: 0, y: 1});
+                    else if (dy < 0 && lastInput.y !== 1) inputQueue.push({x: 0, y: -1});
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
