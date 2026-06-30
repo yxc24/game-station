@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>炸弹人游戏</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 16px 0;
+            box-sizing: border-box;
+            touch-action: manipulation; /* 防止双击缩放 */
+            overflow-y: auto;
+        }
+        .game-container {
+            border: 4px solid #444;
+            border-radius: 10px;
+            background-color: #2a2a2a;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(13, 40px);
+            grid-template-rows: repeat(11, 40px);
+            gap: 2px;
+            background-color: #333;
+            border: 2px solid #555;
+            margin: 20px auto;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            font-size: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-size: cover;
+            transition: transform 0.1s;
+        }
+        .path { background-color: #4a4a4a; }
+        .wall { background-color: #888; background-image: linear-gradient(45deg, #777 25%, transparent 25%, transparent 75%, #777 75%, #777), linear-gradient(45deg, #777 25%, transparent 25%, transparent 75%, #777 75%, #777); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+        .brick { background-color: #b97a57; background-image: linear-gradient(335deg, #a06b4c 23px, transparent 23px), linear-gradient(155deg, #a06b4c 23px, transparent 23px), linear-gradient(335deg, #a06b4c 23px, transparent 23px), linear-gradient(155deg, #a06b4c 23px, transparent 23px); background-size: 58px 58px; background-position: 0px 2px, 4px 35px, 29px 31px, 34px 6px; }
+        .player { z-index: 10; }
+        .bomb { animation: pulse 1s infinite; }
+        .explosion { background-color: #ff9900; animation: flash 0.5s; z-index: 20;}
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+        
+        #status-bar, #controls {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .status-item { font-size: 16px; }
+        .control-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #555;
+            border-radius: 50%;
+            background-color: #444;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .control-btn:active { background-color: #555; transform: scale(0.95); }
+        .d-pad { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 5px; width: 190px;}
+        .bomb-btn-container { display: flex; align-items: center; justify-content: center; }
+
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: #2a2a2a;
+            padding: 40px;
+            border-radius: 10px;
+            border: 4px solid #444;
+            text-align: center;
+        }
+        #modal-title { font-size: 32px; margin-bottom: 20px; }
+        #restart-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 20px;
+            padding: 15px 30px;
+            background-color: #ff9900;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        #restart-btn:hover { background-color: #ffb84d; }
+
+        /* 隐藏手机上的键盘图标等 */
+        input, textarea, [contenteditable] {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1 class="text-3xl mb-4">炸 弹 人</h1>
+    <div id="game-grid"></div>
+    <div id="status-bar">
+        <div class="status-item" id="bombs-status">💣: 1/1</div>
+        <div class="status-item" id="flame-status">💥: 1</div>
+        <div class="status-item" id="enemies-status">👾: 0</div>
+    </div>
+    <div id="controls" class="mt-4 flex justify-between items-center">
+        <div class="d-pad">
+            <div class="col-start-2 row-start-1 control-btn" id="btn-up">W</div>
+            <div class="col-start-1 row-start-2 control-btn" id="btn-left">A</div>
+            <div class="col-start-3 row-start-2 control-btn" id="btn-right">D</div>
+            <div class="col-start-2 row-start-3 control-btn" id="btn-down">S</div>
+        </div>
+        <div class="bomb-btn-container">
+            <button class="control-btn w-24 h-24 rounded-full" id="btn-bomb">BOMB</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="modal-content">
+        <h2 id="modal-title">你赢了!</h2>
+        <button id="restart-btn">重新开始</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM 元素获取 ---
+    const gridElement = document.getElementById('game-grid');
+    const bombsStatus = document.getElementById('bombs-status');
+    const flameStatus = document.getElementById('flame-status');
+    const enemiesStatus = document.getElementById('enemies-status');
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // --- 游戏常量 ---
+    const GRID_WIDTH = 13;
+    const GRID_HEIGHT = 11;
+    const CELL_TYPE = {
+        PATH: 0,
+        WALL: 1,
+        BRICK: 2,
+        PLAYER: 3,
+        ENEMY: 4,
+        DOOR: 5,
+        BOMB_UP: 6,
+        FLAME_UP: 7,
+    };
+    const BOMB_TIMER = 2500; // 炸弹爆炸时间 (ms)
+    const EXPLOSION_TIMER = 500; // 爆炸火焰持续时间 (ms)
+
+    // --- 游戏状态变量 ---
+    let grid = [];
+    let playerPos = { x: 1, y: 1 };
+    let enemies = [];
+    let bombs = [];
+    let gameStats = {
+        bombsMax: 1,
+        flamePower: 1,
+        enemiesLeft: 0
+    };
+    let isGameOver = false;
+
+    // --- 关卡布局 ---
+    // 0: 空地, 1: 石墙, 2: 砖墙, 3: 玩家, 4: 敌人
+    // 5: 门(藏在砖墙下), 6: 炸弹威力道具, 7: 炸弹数量道具
+    const levelLayout = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,3,0,2,2,4,2,2,2,2,2,0,1],
+        [1,0,1,2,1,2,1,4,1,2,1,0,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,1,7,1,2,1,2,1,2,1,2,1],
+        [1,2,2,2,2,5,2,4,2,2,2,2,1],
+        [1,2,1,2,1,2,1,2,1,6,1,2,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,0,1,4,1,2,1,2,1,2,1,0,1],
+        [1,0,2,2,2,2,2,2,4,2,2,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ];
+    
+    // --- 游戏初始化 ---
+    function initGame() {
+        grid = [];
+        enemies = [];
+        bombs = [];
+        isGameOver = false;
+        gameStats = { bombsMax: 1, flamePower: 1, enemiesLeft: 0 };
+        
+        // 解析关卡布局
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            const row = [];
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                const cellType = levelLayout[y][x];
+                let cellData = { type: cellType, hiddenItem: null };
+
+                if (cellType === CELL_TYPE.PLAYER) {
+                    playerPos = { x, y };
+                    cellData.type = CELL_TYPE.PATH;
+                } else if (cellType === CELL_TYPE.ENEMY) {
+                    enemies.push({ x, y, alive: true });
+                    gameStats.enemiesLeft++;
+                    cellData.type = CELL_TYPE.PATH;
+                } else if (cellType >= CELL_TYPE.DOOR) {
+                    cellData.hiddenItem = cellType;
+                    cellData.type = CELL_TYPE.BRICK;
+                }
+                row.push(cellData);
+            }
+            grid.push(row);
+        }
+        
+        modal.style.display = 'none';
+        renderAll();
+    }
+
+    // --- 渲染逻辑 ---
+    function renderAll() {
+        if (isGameOver) return;
+        gridElement.innerHTML = ''; // 清空棋盘
+        
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                const cellData = grid[y][x];
+
+                // 基础地形
+                if (cellData.type === CELL_TYPE.WALL) cell.classList.add('wall');
+                else if (cellData.type === CELL_TYPE.BRICK) cell.classList.add('brick');
+                else cell.classList.add('path');
+
+                // 道具 (在空地上)
+                if (cellData.type === CELL_TYPE.DOOR) cell.innerHTML = '🚪';
+                if (cellData.type === CELL_TYPE.BOMB_UP) cell.innerHTML = '➕';
+                if (cellData.type === CELL_TYPE.FLAME_UP) cell.innerHTML = '💥';
+                
+                gridElement.appendChild(cell);
+            }
+        }
+        
+        // 渲染炸弹
+        bombs.forEach(bomb => {
+            const index = bomb.y * GRID_WIDTH + bomb.x;
+            gridElement.children[index].innerHTML = '💣';
+            gridElement.children[index].classList.add('bomb');
+        });
+
+        // 渲染敌人
+        enemies.forEach(enemy => {
+            if (enemy.alive) {
+                const index = enemy.y * GRID_WIDTH + enemy.x;
+                gridElement.children[index].innerHTML = '👾';
+            }
+        });
+
+        // 渲染玩家
+        const playerIndex = playerPos.y * GRID_WIDTH + playerPos.x;
+        gridElement.children[playerIndex].innerHTML = '👤';
+        gridElement.children[playerIndex].classList.add('player');
+
+        updateStatus();
+    }
+
+    function updateStatus() {
+        bombsStatus.textContent = `💣: ${bombs.length}/${gameStats.bombsMax}`;
+        flameStatus.textContent = `💥: ${gameStats.flamePower}`;
+        enemiesStatus.textContent = `👾: ${gameStats.enemiesLeft}`;
+    }
+
+    // --- 玩家移动和操作 ---
+    function movePlayer(dx, dy) {
+        if (isGameOver) return;
+
+        const newX = playerPos.x + dx;
+        const newY = playerPos.y + dy;
+
+        if (newX < 0 || newX >= GRID_WIDTH || newY < 0 || newY >= GRID_HEIGHT) return;
+
+        const targetCell = grid[newY][newX];
+        const isBombAtTarget = bombs.some(b => b.x === newX && b.y === newY);
+
+        if (targetCell.type === CELL_TYPE.PATH || targetCell.type >= CELL_TYPE.DOOR && !isBombAtTarget) {
+            playerPos.x = newX;
+            playerPos.y = newY;
+            
+            // 拾取道具
+            if (targetCell.type === CELL_TYPE.BOMB_UP) {
+                gameStats.bombsMax++;
+                targetCell.type = CELL_TYPE.PATH;
+            } else if (targetCell.type === CELL_TYPE.FLAME_UP) {
+                gameStats.flamePower++;
+                targetCell.type = CELL_TYPE.PATH;
+            } else if (targetCell.type === CELL_TYPE.DOOR) {
+                if (gameStats.enemiesLeft === 0) {
+                    gameOver(true); // 胜利
+                }
+            }
+            checkEnemyCollision();
+            renderAll();
+        }
+    }
+
+    function placeBomb() {
+        if (isGameOver || bombs.length >= gameStats.bombsMax) return;
+        
+        // 防止在同一个地方重复放炸弹
+        if (bombs.some(b => b.x === playerPos.x && b.y === playerPos.y)) return;
+
+        const bomb = { x: playerPos.x, y: playerPos.y };
+        bombs.push(bomb);
+        renderAll();
+
+        setTimeout(() => {
+            explode(bomb.x, bomb.y);
+        }, BOMB_TIMER);
+    }
+
+    // --- 爆炸逻辑 ---
+    function explode(x, y) {
+        // 从炸弹列表中移除
+        bombs = bombs.filter(b => !(b.x === x && b.y === y));
+        
+        const explosionCoords = new Set();
+        explosionCoords.add(`${x},${y}`); // 中心点
+
+        const directions = [[0,1], [0,-1], [1,0], [-1,0]];
+        directions.forEach(([dx, dy]) => {
+            for (let i = 1; i <= gameStats.flamePower; i++) {
+                const ex = x + dx * i;
+                const ey = y + dy * i;
+
+                if (ex < 0 || ex >= GRID_WIDTH || ey < 0 || ey >= GRID_HEIGHT) break;
+                
+                const cell = grid[ey][ex];
+                if (cell.type === CELL_TYPE.WALL) break; // 石墙挡住爆炸
+
+                explosionCoords.add(`${ex},${ey}`);
+                
+                if (cell.type === CELL_TYPE.BRICK) break; // 砖墙挡住爆炸，但砖墙本身会被炸毁
+            }
+        });
+
+        // 应用爆炸效果
+        const affectedCells = [];
+        explosionCoords.forEach(coord => {
+            const [ex, ey] = coord.split(',').map(Number);
+            const index = ey * GRID_WIDTH + ex;
+            const cellElement = gridElement.children[index];
+            if (cellElement) {
+                cellElement.innerHTML = '';
+                cellElement.classList.add('explosion');
+                affectedCells.push({x: ex, y: ey, element: cellElement});
+            }
+
+            // 检查玩家是否被炸到
+            if (playerPos.x === ex && playerPos.y === ey) {
+                gameOver(false);
+            }
+            
+            // 检查敌人是否被炸到
+            enemies.forEach(enemy => {
+                if (enemy.alive && enemy.x === ex && enemy.y === ey) {
+                    enemy.alive = false;
+                    gameStats.enemiesLeft--;
+                }
+            });
+
+            // 检查是否炸到砖墙
+            const gridCell = grid[ey][ex];
+            if (gridCell.type === CELL_TYPE.BRICK) {
+                gridCell.type = gridCell.hiddenItem ? gridCell.hiddenItem : CELL_TYPE.PATH;
+                gridCell.hiddenItem = null;
+            }
+        });
+
+        // 清除爆炸效果
+        setTimeout(() => {
+            affectedCells.forEach(({element}) => {
+                element.classList.remove('explosion');
+            });
+            renderAll(); // 重新渲染以显示被破坏的墙和死亡的敌人
+        }, EXPLOSION_TIMER);
+    }
+    
+    // --- 碰撞检测和游戏结束 ---
+    function checkEnemyCollision() {
+        enemies.forEach(enemy => {
+            if (enemy.alive && enemy.x === playerPos.x && enemy.y === playerPos.y) {
+                gameOver(false);
+            }
+        });
+    }
+
+    function gameOver(isWin) {
+        if (isGameOver) return;
+        isGameOver = true;
+        modal.style.display = 'flex';
+        modalTitle.textContent = isWin ? '你赢了!' : '游戏结束';
+    }
+
+    // --- 事件监听 ---
+    document.addEventListener('keydown', (e) => {
+        if (isGameOver) return;
+        switch(e.key.toLowerCase()) {
+            case 'w': case 'arrowup': movePlayer(0, -1); break;
+            case 's': case 'arrowdown': movePlayer(0, 1); break;
+            case 'a': case 'arrowleft': movePlayer(-1, 0); break;
+            case 'd': case 'arrowright': movePlayer(1, 0); break;
+            case 'b': case ' ': e.preventDefault(); placeBomb(); break;
+        }
+    });
+
+    // 触摸按钮
+    document.getElementById('btn-up').addEventListener('click', () => movePlayer(0, -1));
+    document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, 1));
+    document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
+    document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
+    document.getElementById('btn-bomb').addEventListener('click', placeBomb);
+
+    restartBtn.addEventListener('click', initGame);
+
+    // --- 启动游戏 ---
+    initGame();
+});
+</script>
+</body>
+</html>

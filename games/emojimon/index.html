@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmojiMon Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #202020;
+            color: white;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: manipulation; /* Improve touch response */
+        }
+
+        /* Custom Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes throwBall {
+            0% { transform: translateY(0) rotate(0deg) scale(1); }
+            50% { transform: translateY(-150px) rotate(360deg) scale(0.5); }
+            100% { transform: translateY(-50px) rotate(720deg) scale(0); }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-30px);}
+            60% {transform: translateY(-15px);}
+        }
+
+        .anim-shake { animation: shake 0.5s; }
+        .anim-flash { animation: flash 0.2s 3; }
+        .anim-throw { animation: throwBall 1s forwards; }
+        .anim-bounce { animation: bounce 1s; }
+        
+        .hp-bar-fill {
+            transition: width 0.5s ease-out, background-color 0.5s;
+        }
+
+        /* Retro Gameboy-ish container */
+        .game-boy {
+            max-width: 480px;
+            margin: 0 auto;
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 20px 20px 40px 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .screen-border {
+            background: #555;
+            padding: 20px;
+            border-radius: 10px 10px 40px 10px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            background: #9bbc0f; /* Classic green tint */
+            background: linear-gradient(180deg, #c4e44c 0%, #9bbc0f 100%);
+            color: #0f380f;
+            flex-grow: 1;
+            border-radius: 5px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scanlines */
+        .screen::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .btn-retro {
+            background: #333;
+            color: #f0f0f0;
+            border: 2px solid #111;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #111;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-retro:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #111;
+        }
+
+        .hidden { display: none !important; }
+        
+        .type-badge {
+            font-size: 0.6em;
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: white;
+            text-shadow: 1px 1px 0 #000;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-900 p-2">
+
+    <div class="game-boy">
+        <div class="flex justify-between items-center mb-2 px-2 text-gray-500 text-xs">
+            <span>EMOJIMON</span>
+            <span>BATTERY <span class="text-red-500">LOW</span></span>
+        </div>
+
+        <div class="screen-border">
+            <div id="game-screen" class="screen p-4">
+                
+                <!-- VIEW: START MENU -->
+                <div id="view-start" class="flex flex-col items-center justify-center h-full text-center space-y-6">
+                    <h1 class="text-3xl font-bold animate-bounce mt-10">EMOJIMON</h1>
+                    <div class="text-6xl space-x-2">
+                        <span>🔥</span><span>💧</span><span>🌿</span>
+                    </div>
+                    <p class="text-xs mt-4 blinking">PRESS START</p>
+                    <button onclick="game.initStarterSelection()" class="btn-retro px-8 py-4 mt-8">START GAME</button>
+                </div>
+
+                <!-- VIEW: STARTER SELECTION -->
+                <div id="view-starter" class="hidden flex-col h-full">
+                    <h2 class="text-center text-sm mb-4">CHOOSE YOUR PARTNER</h2>
+                    <div class="flex flex-col space-y-4 items-center justify-center flex-grow">
+                        <button onclick="game.chooseStarter(0)" class="btn-retro w-full flex items-center justify-between hover:bg-gray-700">
+                            <span class="text-4xl">🔥</span>
+                            <div class="text-left flex-grow pl-4">
+                                <div class="font-bold">FLAMEJI</div>
+                                <div class="text-xs">Fire Type</div>
+                            </div>
+                        </button>
+                        <button onclick="game.chooseStarter(1)" class="btn-retro w-full flex items-center justify-between hover:bg-gray-700">
+                            <span class="text-4xl">💧</span>
+                            <div class="text-left flex-grow pl-4">
+                                <div class="font-bold">AQUAJI</div>
+                                <div class="text-xs">Water Type</div>
+                            </div>
+                        </button>
+                        <button onclick="game.chooseStarter(2)" class="btn-retro w-full flex items-center justify-between hover:bg-gray-700">
+                            <span class="text-4xl">🌿</span>
+                            <div class="text-left flex-grow pl-4">
+                                <div class="font-bold">LEAFJI</div>
+                                <div class="text-xs">Grass Type</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VIEW: HUB / WORLD -->
+                <div id="view-hub" class="hidden flex-col h-full relative">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-10 h-10 bg-white/50 rounded-full flex items-center justify-center text-2xl" id="hub-player-icon">🦁</div>
+                            <div>
+                                <div id="hub-player-name" class="font-bold text-xs">Player</div>
+                                <div id="hub-player-lvl" class="text-xs opacity-75">Lvl 5</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs">💼: <span id="hub-potions">0</span></div>
+                            <div class="text-xs">🔴: <span id="hub-balls">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow flex items-center justify-center">
+                        <div class="grid grid-cols-2 gap-4 w-full">
+                            <button onclick="game.explore()" class="btn-retro h-24 flex flex-col items-center justify-center space-y-2">
+                                <span class="text-3xl">🌾</span>
+                                <span>TALL GRASS</span>
+                            </button>
+                            <button onclick="game.heal()" class="btn-retro h-24 flex flex-col items-center justify-center space-y-2">
+                                <span class="text-3xl">🏥</span>
+                                <span>HEAL</span>
+                            </button>
+                            <button onclick="game.shop()" class="btn-retro h-24 flex flex-col items-center justify-center space-y-2">
+                                <span class="text-3xl">🏪</span>
+                                <span>SHOP</span>
+                            </button>
+                            <button onclick="game.viewDex()" class="btn-retro h-24 flex flex-col items-center justify-center space-y-2">
+                                <span class="text-3xl">📖</span>
+                                <span>DEX</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="hub-message" class="absolute bottom-0 left-0 right-0 bg-white/90 p-2 text-xs border-t-2 border-black min-h-[40px] hidden">
+                        <!-- Messages appear here -->
+                    </div>
+                </div>
+
+                <!-- VIEW: BATTLE -->
+                <div id="view-battle" class="hidden flex-col h-full relative">
+                    <!-- Enemy Area -->
+                    <div class="flex justify-end items-start pt-2 px-2 relative h-1/3">
+                        <div class="absolute left-2 top-2 bg-white/80 p-2 rounded border border-black text-xs w-32 shadow-md">
+                            <div id="enemy-name" class="font-bold">Enemy</div>
+                            <div class="w-full bg-gray-300 h-2 mt-1 rounded-full border border-black overflow-hidden">
+                                <div id="enemy-hp-bar" class="bg-red-500 h-full w-full hp-bar-fill"></div>
+                            </div>
+                            <div class="text-[0.6rem] mt-1 text-right">Lvl <span id="enemy-lvl">1</span></div>
+                        </div>
+                        <div id="enemy-sprite" class="text-7xl animate-bounce mt-8 mr-4">👽</div>
+                    </div>
+
+                    <!-- Player Area -->
+                    <div class="flex justify-start items-end pb-2 px-2 relative h-1/3">
+                         <div id="player-sprite" class="text-7xl mb-4 ml-4 scale-x-[-1]">🦁</div>
+                         <div class="absolute right-2 bottom-8 bg-white/80 p-2 rounded border border-black text-xs w-32 shadow-md">
+                            <div id="battle-player-name" class="font-bold">You</div>
+                            <div class="w-full bg-gray-300 h-2 mt-1 rounded-full border border-black overflow-hidden">
+                                <div id="player-hp-bar" class="bg-green-500 h-full w-full hp-bar-fill"></div>
+                            </div>
+                            <div class="flex justify-between text-[0.6rem] mt-1">
+                                <span>HP: <span id="player-hp-text">20/20</span></span>
+                                <span>Lvl <span id="battle-player-lvl">5</span></span>
+                            </div>
+                             <!-- XP Bar -->
+                             <div class="w-full bg-blue-200 h-1 mt-1 rounded-full border border-blue-900 overflow-hidden">
+                                <div id="player-xp-bar" class="bg-blue-500 h-full w-0"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log / Menu Area -->
+                    <div class="h-1/3 bg-white border-t-4 border-double border-black p-2 relative text-black z-10">
+                        <div id="battle-log" class="text-xs h-full overflow-y-auto font-bold leading-relaxed pb-8">
+                            Wild ALIEN appeared!
+                        </div>
+                        
+                        <!-- Battle Controls Overlay -->
+                        <div id="battle-controls" class="absolute bottom-2 left-2 right-2 grid grid-cols-2 gap-2">
+                            <button onclick="battle.attack()" class="btn-retro bg-white text-black hover:bg-gray-200">⚔️ ATTACK</button>
+                            <button onclick="battle.tryCatch()" class="btn-retro bg-white text-black hover:bg-gray-200">🔴 CATCH (<span id="battle-balls-count">0</span>)</button>
+                            <button onclick="battle.usePotion()" class="btn-retro bg-white text-black hover:bg-gray-200">💊 POTION (<span id="battle-potions-count">0</span>)</button>
+                            <button onclick="battle.run()" class="btn-retro bg-white text-black hover:bg-gray-200">🏃 RUN</button>
+                        </div>
+                        
+                        <button id="battle-next-btn" onclick="battle.nextTurn()" class="hidden absolute bottom-2 right-2 btn-retro animate-pulse">NEXT ▼</button>
+                        <button id="battle-end-btn" onclick="game.returnToHub()" class="hidden absolute bottom-2 right-2 btn-retro">CONTINUE ▶</button>
+                    </div>
+                </div>
+
+                <!-- VIEW: DEX -->
+                <div id="view-dex" class="hidden flex-col h-full bg-white text-black overflow-y-auto p-2">
+                    <h2 class="text-center font-bold mb-4 border-b-2 border-black pb-2">EMOJIDEX</h2>
+                    <div id="dex-grid" class="grid grid-cols-1 gap-2">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button onclick="game.returnToHub()" class="btn-retro mt-4 w-full">BACK</button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="mt-4 flex justify-between px-8">
+            <div class="flex space-x-2">
+                <div class="w-8 h-8 rounded-full bg-gray-800 shadow-inner"></div>
+                <div class="w-8 h-8 rounded-full bg-gray-800 shadow-inner translate-y-4"></div>
+            </div>
+            <div class="flex flex-col space-y-2 transform rotate-12">
+                 <div class="w-12 h-4 bg-gray-800 rounded-full shadow-inner"></div>
+                 <div class="w-12 h-4 bg-gray-800 rounded-full shadow-inner"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * DATA & CONFIG
+ */
+const TYPES = {
+    NORMAL: { color: '#A8A77A', weak: ['FIGHT'] },
+    FIRE: { color: '#EE8130', weak: ['WATER', 'ROCK'] },
+    WATER: { color: '#6390F0', weak: ['GRASS', 'ELEC'] },
+    GRASS: { color: '#7AC74C', weak: ['FIRE', 'ICE'] },
+    ELEC: { color: '#F7D02C', weak: ['GROUND'] },
+    GHOST: { color: '#735797', weak: ['GHOST'] },
+};
+
+const EMOJIS = [
+    { id: 1, name: 'Ratji', emoji: '🐀', type: 'NORMAL', hp: 20, atk: 5, rarity: 1 },
+    { id: 2, name: 'Batji', emoji: '🦇', type: 'GHOST', hp: 25, atk: 6, rarity: 1 },
+    { id: 3, name: 'Snakeji', emoji: '🐍', type: 'GRASS', hp: 30, atk: 8, rarity: 2 },
+    { id: 4, name: 'Rockji', emoji: '🗿', type: 'NORMAL', hp: 50, atk: 4, rarity: 2 },
+    { id: 5, name: 'Ghostji', emoji: '👻', type: 'GHOST', hp: 35, atk: 9, rarity: 2 },
+    { id: 6, name: 'Octoji', emoji: '🐙', type: 'WATER', hp: 40, atk: 7, rarity: 3 },
+    { id: 7, name: 'Dragonji', emoji: '🐉', type: 'FIRE', hp: 60, atk: 12, rarity: 4 },
+    { id: 8, name: 'Alienji', emoji: '👽', type: 'ELEC', hp: 45, atk: 11, rarity: 4 },
+    { id: 9, name: 'Robotji', emoji: '🤖', type: 'ELEC', hp: 55, atk: 10, rarity: 3 },
+    { id: 10, name: 'Demonji', emoji: '👹', type: 'FIRE', hp: 65, atk: 14, rarity: 5 },
+];
+
+const STARTERS = [
+    { id: 101, name: 'Flameji', emoji: '🔥', type: 'FIRE', hp: 30, atk: 8 },
+    { id: 102, name: 'Aquaji', emoji: '💧', type: 'WATER', hp: 30, atk: 8 },
+    { id: 103, name: 'Leafji', emoji: '🌿', type: 'GRASS', hp: 30, atk: 8 },
+];
+
+/**
+ * GAME STATE
+ */
+const state = {
+    player: {
+        pokemon: null, // { ...baseStats, currentHp, maxHp, lvl, xp, nextLvlXp }
+        inventory: {
+            potions: 3,
+            balls: 5
+        },
+        caught: [], // IDs of caught pokemon
+        gold: 0
+    },
+    enemy: null, // { ...baseStats, currentHp, maxHp, lvl }
+    turn: 'player', // 'player' or 'enemy'
+    battleActive: false
+};
+
+/**
+ * DOM ELEMENTS
+ */
+const views = {
+    start: document.getElementById('view-start'),
+    starter: document.getElementById('view-starter'),
+    hub: document.getElementById('view-hub'),
+    battle: document.getElementById('view-battle'),
+    dex: document.getElementById('view-dex')
+};
+
+const ui = {
+    hubPlayerIcon: document.getElementById('hub-player-icon'),
+    hubPlayerName: document.getElementById('hub-player-name'),
+    hubPlayerLvl: document.getElementById('hub-player-lvl'),
+    hubPotions: document.getElementById('hub-potions'),
+    hubBalls: document.getElementById('hub-balls'),
+    hubMessage: document.getElementById('hub-message'),
+    
+    battleEnemyName: document.getElementById('enemy-name'),
+    battleEnemySprite: document.getElementById('enemy-sprite'),
+    battleEnemyHp: document.getElementById('enemy-hp-bar'),
+    battleEnemyLvl: document.getElementById('enemy-lvl'),
+    
+    battlePlayerName: document.getElementById('battle-player-name'),
+    battlePlayerSprite: document.getElementById('player-sprite'),
+    battlePlayerHp: document.getElementById('player-hp-bar'),
+    battlePlayerHpText: document.getElementById('player-hp-text'),
+    battlePlayerLvl: document.getElementById('battle-player-lvl'),
+    battlePlayerXp: document.getElementById('player-xp-bar'),
+    
+    battleLog: document.getElementById('battle-log'),
+    battleControls: document.getElementById('battle-controls'),
+    battleNextBtn: document.getElementById('battle-next-btn'),
+    battleEndBtn: document.getElementById('battle-end-btn'),
+    
+    battleBallsCount: document.getElementById('battle-balls-count'),
+    battlePotionsCount: document.getElementById('battle-potions-count'),
+    
+    dexGrid: document.getElementById('dex-grid')
+};
+
+/**
+ * CORE FUNCTIONS
+ */
+const game = {
+    switchView: (viewName) => {
+        Object.values(views).forEach(el => el.classList.add('hidden'));
+        views[viewName].classList.remove('hidden');
+        views[viewName].classList.add('flex');
+    },
+
+    initStarterSelection: () => {
+        game.switchView('starter');
+    },
+
+    chooseStarter: (index) => {
+        const starter = STARTERS[index];
+        state.player.pokemon = {
+            ...starter,
+            currentHp: starter.hp,
+            maxHp: starter.hp,
+            lvl: 5,
+            xp: 0,
+            nextLvlXp: 100
+        };
+        state.player.caught.push(starter.id);
+        game.updateHubUI();
+        game.switchView('hub');
+        game.showHubMessage(`You chose ${starter.name}! Adventure awaits!`);
+    },
+
+    updateHubUI: () => {
+        const p = state.player;
+        const pk = p.pokemon;
+        ui.hubPlayerIcon.textContent = pk.emoji;
+        ui.hubPlayerName.textContent = pk.name;
+        ui.hubPlayerLvl.textContent = `Lvl ${pk.lvl}`;
+        ui.hubPotions.textContent = p.inventory.potions;
+        ui.hubBalls.textContent = p.inventory.balls;
+    },
+
+    showHubMessage: (msg) => {
+        ui.hubMessage.textContent = msg;
+        ui.hubMessage.classList.remove('hidden');
+        setTimeout(() => ui.hubMessage.classList.add('hidden'), 3000);
+    },
+
+    explore: () => {
+        // Random encounter chance
+        const rand = Math.random();
+        
+        // 10% chance to find item
+        if (rand < 0.1) {
+            state.player.inventory.potions++;
+            game.updateHubUI();
+            game.showHubMessage("You found a Potion in the grass!");
+            return;
+        }
+        
+        // 10% chance to find ball
+        if (rand < 0.2) {
+            state.player.inventory.balls++;
+            game.updateHubUI();
+            game.showHubMessage("You found an EmojiBall!");
+            return;
+        }
+
+        // 80% Battle
+        battle.start();
+    },
+
+    heal: () => {
+        const p = state.player.pokemon;
+        p.currentHp = p.maxHp;
+        game.showHubMessage(`${p.name} was fully healed!`);
+        // Simple visual feedback
+        ui.hubPlayerIcon.classList.add('anim-bounce');
+        setTimeout(() => ui.hubPlayerIcon.classList.remove('anim-bounce'), 1000);
+    },
+
+    shop: () => {
+        // Simple shop logic: refill basics
+        state.player.inventory.balls = 5;
+        state.player.inventory.potions = 3;
+        game.updateHubUI();
+        game.showHubMessage("Supplies refilled by the Shopkeeper!");
+    },
+
+    viewDex: () => {
+        ui.dexGrid.innerHTML = '';
+        
+        // Combine Starters and Wilds for Dex
+        const allMons = [...STARTERS, ...EMOJIS];
+        
+        allMons.forEach(mon => {
+            const isCaught = state.player.caught.includes(mon.id);
+            const div = document.createElement('div');
+            div.className = `flex items-center p-2 border ${isCaught ? 'bg-green-100 border-green-500' : 'bg-gray-200 border-gray-400 opacity-50'}`;
+            
+            div.innerHTML = `
+                <div class="text-2xl w-12 text-center">${isCaught ? mon.emoji : '❓'}</div>
+                <div>
+                    <div class="font-bold text-xs">${isCaught ? mon.name : '??????'}</div>
+                    <div class="text-[0.6rem]">${mon.type}</div>
+                </div>
+            `;
+            ui.dexGrid.appendChild(div);
+        });
+        
+        game.switchView('dex');
+    },
+
+    returnToHub: () => {
+        game.updateHubUI();
+        game.switchView('hub');
+    }
+};
+
+/**
+ * BATTLE LOGIC
+ */
+const battle = {
+    start: () => {
+        state.battleActive = true;
+        
+        // Generate Enemy
+        const randomBase = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+        // Scale enemy to player level +/- 1
+        const levelVariance = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+        let lvl = state.player.pokemon.lvl + levelVariance;
+        if(lvl < 1) lvl = 1;
+
+        // Calculate stats
+        const maxHp = Math.floor(randomBase.hp * (1 + (lvl * 0.1)));
+        const atk = Math.floor(randomBase.atk * (1 + (lvl * 0.1)));
+
+        state.enemy = {
+            ...randomBase,
+            lvl: lvl,
+            maxHp: maxHp,
+            currentHp: maxHp,
+            atk: atk
+        };
+
+        // Reset UI
+        ui.battleEnemySprite.textContent = state.enemy.emoji;
+        ui.battleEnemyName.textContent = state.enemy.name;
+        ui.battleEnemyLvl.textContent = state.enemy.lvl;
+        ui.battlePlayerSprite.textContent = state.player.pokemon.emoji;
+        ui.battlePlayerName.textContent = state.player.pokemon.name;
+        ui.battlePlayerLvl.textContent = state.player.pokemon.lvl;
+
+        ui.battleControls.classList.remove('hidden');
+        ui.battleNextBtn.classList.add('hidden');
+        ui.battleEndBtn.classList.add('hidden');
+        
+        battle.updateBars();
+        battle.log(`Wild ${state.enemy.name} appeared!`);
+        
+        game.switchView('battle');
+    },
+
+    log: (text) => {
+        const div = document.createElement('div');
+        div.className = 'mb-1';
+        div.innerText = `> ${text}`;
+        ui.battleLog.appendChild(div);
+        ui.battleLog.scrollTop = ui.battleLog.scrollHeight;
+    },
+
+    updateBars: () => {
+        // Player HP
+        const pHpPct = (state.player.pokemon.currentHp / state.player.pokemon.maxHp) * 100;
+        ui.battlePlayerHp.style.width = `${Math.max(0, pHpPct)}%`;
+        ui.battlePlayerHp.className = `h-full w-full hp-bar-fill ${pHpPct < 20 ? 'bg-red-600 animate-pulse' : (pHpPct < 50 ? 'bg-yellow-500' : 'bg-green-500')}`;
+        ui.battlePlayerHpText.innerText = `${Math.ceil(state.player.pokemon.currentHp)}/${state.player.pokemon.maxHp}`;
+        
+        // Enemy HP
+        const eHpPct = (state.enemy.currentHp / state.enemy.maxHp) * 100;
+        ui.battleEnemyHp.style.width = `${Math.max(0, eHpPct)}%`;
+        ui.battleEnemyHp.className = `h-full w-full hp-bar-fill ${eHpPct < 20 ? 'bg-red-600' : (eHpPct < 50 ? 'bg-yellow-500' : 'bg-green-500')}`;
+
+        // XP
+        const xpPct = (state.player.pokemon.xp / state.player.pokemon.nextLvlXp) * 100;
+        ui.battlePlayerXp.style.width = `${xpPct}%`;
+
+        // Buttons
+        ui.battleBallsCount.innerText = state.player.inventory.balls;
+        ui.battlePotionsCount.innerText = state.player.inventory.potions;
+    },
+
+    // Player Actions
+    attack: () => {
+        ui.battleControls.classList.add('hidden');
+        
+        // Visual
+        ui.battlePlayerSprite.classList.add('anim-shake');
+        setTimeout(() => ui.battlePlayerSprite.classList.remove('anim-shake'), 500);
+
+        // Logic
+        const dmg = Math.floor(state.player.pokemon.atk * (0.8 + Math.random() * 0.4));
+        // Type bonus logic could go here
+        
+        setTimeout(() => {
+            ui.battleEnemySprite.classList.add('anim-flash');
+            setTimeout(() => ui.battleEnemySprite.classList.remove('anim-flash'), 600);
+            
+            state.enemy.currentHp -= dmg;
+            battle.log(`${state.player.pokemon.name} attacks! Dealt ${dmg} dmg.`);
+            battle.updateBars();
+
+            if (state.enemy.currentHp <= 0) {
+                battle.win();
+            } else {
+                ui.battleNextBtn.classList.remove('hidden');
+            }
+        }, 500);
+    },
+
+    usePotion: () => {
+        if (state.player.inventory.potions <= 0) {
+            battle.log("No potions left!");
+            return;
+        }
+        state.player.inventory.potions--;
+        ui.battleControls.classList.add('hidden');
+        
+        const healAmt = 20;
+        state.player.pokemon.currentHp = Math.min(state.player.pokemon.maxHp, state.player.pokemon.currentHp + healAmt);
+        
+        battle.log(`Used Potion. Healed ${healAmt} HP.`);
+        battle.updateBars();
+        
+        ui.battleNextBtn.classList.remove('hidden');
+    },
+
+    tryCatch: () => {
+        if (state.player.inventory.balls <= 0) {
+            battle.log("No EmojiBalls left!");
+            return;
+        }
+        state.player.inventory.balls--;
+        ui.battleControls.classList.add('hidden');
+        
+        battle.log("Threw EmojiBall!");
+        
+        // Simple animation logic would go here (projectile)
+        
+        // Catch Formula
+        const hpPct = state.enemy.currentHp / state.enemy.maxHp;
+        // Easier to catch if low HP. 
+        // If HP is 100%, chance is 10%. If HP is 1%, chance is ~90%
+        const catchChance = 1 - (hpPct * 0.9);
+        const roll = Math.random();
+
+        setTimeout(() => {
+            if (roll < catchChance) {
+                battle.log("Gotcha! The EmojiMon was caught!");
+                if (!state.player.caught.includes(state.enemy.id)) {
+                    state.player.caught.push(state.enemy.id);
+                    battle.log("Added to EmojiDex.");
+                }
+                ui.battleEndBtn.classList.remove('hidden');
+                ui.battleEnemySprite.classList.add('hidden');
+            } else {
+                battle.log("Darn! It broke free!");
+                ui.battleNextBtn.classList.remove('hidden');
+            }
+            battle.updateBars();
+        }, 1000);
+    },
+
+    run: () => {
+        battle.log("Got away safely!");
+        ui.battleControls.classList.add('hidden');
+        ui.battleEndBtn.classList.remove('hidden');
+    },
+
+    // Turn Handling
+    nextTurn: () => {
+        ui.battleNextBtn.classList.add('hidden');
+        
+        // Enemy attacks
+        ui.battleEnemySprite.classList.add('anim-shake');
+        setTimeout(() => ui.battleEnemySprite.classList.remove('anim-shake'), 500);
+
+        setTimeout(() => {
+            const dmg = Math.floor(state.enemy.atk * (0.8 + Math.random() * 0.4));
+            
+            ui.battlePlayerSprite.classList.add('anim-flash');
+            setTimeout(() => ui.battlePlayerSprite.classList.remove('anim-flash'), 600);
+
+            state.player.pokemon.currentHp -= dmg;
+            battle.log(`${state.enemy.name} attacks! Dealt ${dmg} dmg.`);
+            battle.updateBars();
+
+            if (state.player.pokemon.currentHp <= 0) {
+                battle.lose();
+            } else {
+                ui.battleControls.classList.remove('hidden');
+            }
+        }, 500);
+    },
+
+    win: () => {
+        battle.log(`Enemy ${state.enemy.name} fainted!`);
+        ui.battleEnemySprite.classList.add('hidden');
+        
+        // XP Gain
+        const xpGain = Math.floor(state.enemy.lvl * 10 * 1.5);
+        state.player.pokemon.xp += xpGain;
+        battle.log(`Gained ${xpGain} XP.`);
+        
+        // Level Up
+        if (state.player.pokemon.xp >= state.player.pokemon.nextLvlXp) {
+            state.player.pokemon.lvl++;
+            state.player.pokemon.xp -= state.player.pokemon.nextLvlXp;
+            state.player.pokemon.nextLvlXp = Math.floor(state.player.pokemon.nextLvlXp * 1.5);
+            
+            // Stat boost
+            state.player.pokemon.maxHp += 5;
+            state.player.pokemon.currentHp = state.player.pokemon.maxHp;
+            state.player.pokemon.atk += 2;
+            
+            battle.log(`${state.player.pokemon.name} grew to Lvl ${state.player.pokemon.lvl}!`);
+        }
+        
+        battle.updateBars();
+        ui.battleEndBtn.classList.remove('hidden');
+    },
+
+    lose: () => {
+        battle.log(`${state.player.pokemon.name} fainted...`);
+        battle.log(`You blacked out and rushed to the center.`);
+        state.player.pokemon.currentHp = state.player.pokemon.maxHp;
+        
+        // Wait then go back
+        setTimeout(() => {
+            game.returnToHub();
+        }, 3000);
+    }
+};
+
+// Initial Setup
+// (Usually handled by "Start Game" button, but preloading fonts etc is good)
+</script>
+</body>
+</html>

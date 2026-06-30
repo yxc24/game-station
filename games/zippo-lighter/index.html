@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IGNIS — Zippo Lighter Simulator</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Inline Icon Components ---
+        const Flame = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>;
+        const Volume2 = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>;
+        const VolumeX = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>;
+        const Sparkles = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>;
+        const X = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const ArrowUpFromLine = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 9-6-6-6 6"/><path d="M12 3v14"/><path d="M5 21h14"/></svg>;
+        const Palette = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>;
+        const Hammer = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91"/></svg>;
+        const Zap = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+        const Crown = ({size=16, strokeWidth=2}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>;
+        const Grid = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
+        const Component = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5.5 8.5 9 12l-3.5 3.5L2 12l3.5-3.5Z"/><path d="m12 2 3.5 3.5L12 9 8.5 5.5 12 2Z"/><path d="M18.5 8.5 22 12l-3.5 3.5L15 12l3.5-3.5Z"/><path d="m12 15 3.5 3.5L12 22l-3.5-3.5L12 15Z"/></svg>;
+        const Wind = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>;
+        const CircleDashed = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.1 2.18a9.93 9.93 0 0 1 3.8 0"/><path d="M17.6 3.71a9.95 9.95 0 0 1 2.69 2.7"/><path d="M21.82 10.1a9.93 9.93 0 0 1 0 3.8"/><path d="M20.29 17.6a9.95 9.95 0 0 1-2.7 2.69"/><path d="M13.9 21.82a9.94 9.94 0 0 1-3.8 0"/><path d="M6.4 20.29a9.95 9.95 0 0 1-2.69-2.7"/><path d="M2.18 13.9a9.93 9.93 0 0 1 0-3.8"/><path d="M3.71 6.4a9.95 9.95 0 0 1 2.7-2.69"/></svg>;
+        const Bomb = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="13" r="9"/><path d="m19.5 9.5 1.8-1.8a2.4 2.4 0 0 0 0-3.4l-1.6-1.6a2.4 2.4 0 0 0-3.4 0l-1.8 1.8"/><path d="m22 2-1.5 1.5"/></svg>;
+        const Utensils = ({size=16}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>;
+
+        // --- Sound Engine ---
+        class AudioEngine {
+          constructor() {
+            this.ctx = null;
+            this.masterGain = null;
+            this.burnNode = null;
+            this.burnGain = null;
+            this.isMuted = false;
+          }
+          init() {
+            if (!this.ctx) {
+              const AudioContext = window.AudioContext || window.webkitAudioContext;
+              this.ctx = new AudioContext();
+              this.masterGain = this.ctx.createGain();
+              this.masterGain.gain.value = 0.3;
+              this.masterGain.connect(this.ctx.destination);
+            }
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+          }
+          checkContext() {
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+          }
+          setMute(mute) {
+            this.isMuted = mute;
+            if (this.ctx && this.masterGain)
+              this.masterGain.gain.setTargetAtTime(mute ? 0 : 0.3, this.ctx.currentTime, 0.1);
+          }
+          playClick(type = 'open') {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const snapOsc = this.ctx.createOscillator();
+            const snapGain = this.ctx.createGain();
+            snapOsc.frequency.setValueAtTime(400, t);
+            snapOsc.frequency.exponentialRampToValueAtTime(50, t + 0.05);
+            snapOsc.type = 'square';
+            snapGain.gain.setValueAtTime(0.8, t);
+            snapGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+            const pingOsc = this.ctx.createOscillator();
+            const pingGain = this.ctx.createGain();
+            pingOsc.type = 'sine';
+            const pitch = type === 'open' ? 2500 : 1800;
+            pingOsc.frequency.setValueAtTime(pitch, t);
+            pingOsc.frequency.exponentialRampToValueAtTime(pitch - 50, t + 1.0);
+            pingGain.gain.setValueAtTime(0, t);
+            pingGain.gain.linearRampToValueAtTime(0.5, t + 0.01);
+            pingGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+            const thudOsc = this.ctx.createOscillator();
+            const thudGain = this.ctx.createGain();
+            thudOsc.type = 'triangle';
+            thudOsc.frequency.setValueAtTime(300, t);
+            thudGain.gain.setValueAtTime(0.5, t);
+            thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            snapOsc.connect(snapGain); pingOsc.connect(pingGain); thudOsc.connect(thudGain);
+            snapGain.connect(this.masterGain); pingGain.connect(this.masterGain); thudGain.connect(this.masterGain);
+            snapOsc.start(t); pingOsc.start(t); thudOsc.start(t);
+            snapOsc.stop(t + 0.1); pingOsc.stop(t + 1.5); thudOsc.stop(t + 0.2);
+          }
+          playStrike() {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const bufferSize = this.ctx.sampleRate * 0.1;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 800;
+            gain.gain.setValueAtTime(0.8, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t);
+          }
+          playBlow() {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const bufferSize = this.ctx.sampleRate * 0.5;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(400, t);
+            filter.frequency.linearRampToValueAtTime(100, t + 0.4);
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.8, t + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t);
+          }
+          playSizzle() {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const bufferSize = this.ctx.sampleRate * 1.5;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+              if (Math.random() > 0.9) data[i] = Math.random() * 0.5;
+              else data[i] = Math.random() * 0.05;
+            }
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.4, t + 0.2);
+            gain.gain.linearRampToValueAtTime(0, t + 1.5);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t);
+          }
+          playFuse() {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const bufferSize = this.ctx.sampleRate * 2.0;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 3000;
+            gain.gain.setValueAtTime(0.5, t);
+            gain.gain.linearRampToValueAtTime(0, t + 2.0);
+            noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+            noise.start(t);
+          }
+          playBang() {
+            this.checkContext();
+            if (!this.ctx || this.isMuted) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.frequency.setValueAtTime(100, t);
+            osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
+            osc.type = 'square';
+            gain.gain.setValueAtTime(1, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+            osc.connect(gain); gain.connect(this.masterGain);
+            osc.start(t); osc.stop(t + 0.5);
+            const bufferSize = this.ctx.sampleRate * 1.0;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = this.ctx.createGain();
+            noiseGain.gain.setValueAtTime(1, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+            noise.connect(noiseGain); noiseGain.connect(this.masterGain);
+            noise.start(t);
+          }
+          startBurn(intensity) {
+            this.checkContext();
+            if (!this.ctx) return;
+            if (this.burnNode) return;
+            const bufferSize = this.ctx.sampleRate * 2;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+              const white = Math.random() * 2 - 1;
+              data[i] = (lastOut + (0.02 * white)) / 1.02;
+              lastOut = data[i];
+              data[i] *= 3.5;
+            }
+            this.burnNode = this.ctx.createBufferSource();
+            this.burnNode.buffer = buffer;
+            this.burnNode.loop = true;
+            this.burnGain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 300;
+            this.burnNode.connect(filter);
+            filter.connect(this.burnGain);
+            this.burnGain.connect(this.masterGain);
+            this.burnNode.start();
+            this.updateBurnVolume(intensity);
+          }
+          updateBurnVolume(intensity) {
+            if (this.burnGain && this.ctx && !this.isMuted) {
+              const target = (intensity / 100) * 0.6;
+              this.burnGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.1);
+            }
+          }
+          stopBurn() {
+            if (this.burnNode) {
+              try { this.burnNode.stop(); } catch (e) {}
+              this.burnNode.disconnect();
+              this.burnNode = null;
+            }
+            if (this.burnGain) {
+              this.burnGain.disconnect();
+              this.burnGain = null;
+            }
+          }
+        }
+
+        const audio = new AudioEngine();
+
+        // --- Configuration Data ---
+        const DESIGNS = [
+          { id: 'classic',  name: 'Classic',  icon: <div className="w-4 h-4 bg-current rounded-sm" /> },
+          { id: 'venetian', name: 'Venetian', icon: <div className="w-4 h-4 border-l-2 border-r-2 border-current" /> },
+          { id: 'ace',      name: 'Ace',      icon: <div className="text-[10px] font-bold">A♠</div> },
+          { id: 'dragon',   name: 'Dragon',   icon: <Crown size={14} /> },
+          { id: 'carbon',   name: 'Carbon',   icon: <Grid size={14} /> },
+          { id: 'geo',      name: 'Geo',      icon: <Component size={14} /> },
+        ];
+
+        const COLORS = [
+          { id: 'gold',        name: 'Gold',       gradient: 'from-amber-200 via-amber-400 to-amber-600',     border: 'border-amber-700/50' },
+          { id: 'silver',      name: 'Silver',     gradient: 'from-slate-200 via-slate-400 to-slate-500',     border: 'border-slate-600/50' },
+          { id: 'obsidian',    name: 'Obsidian',   gradient: 'from-neutral-700 via-neutral-800 to-neutral-950', border: 'border-black/50' },
+          { id: 'matte',       name: 'Matte Black',gradient: 'from-neutral-800 via-neutral-800 to-neutral-900', border: 'border-neutral-700' },
+          { id: 'cobalt',      name: 'Cobalt',     gradient: 'from-blue-400 via-blue-600 to-blue-800',        border: 'border-blue-900/50' },
+          { id: 'crimson',     name: 'Crimson',    gradient: 'from-red-500 via-red-700 to-red-900',           border: 'border-red-950/50' },
+          { id: 'emerald',     name: 'Emerald',    gradient: 'from-emerald-400 via-emerald-600 to-emerald-800', border: 'border-emerald-900/50' },
+          { id: 'rose',        name: 'Rose Gold',  gradient: 'from-rose-200 via-rose-300 to-rose-400',        border: 'border-rose-500/50' },
+          { id: 'iridescent',  name: 'Chameleon',  gradient: 'from-purple-400 via-pink-500 to-yellow-500',    border: 'border-purple-500/50' },
+        ];
+
+        const FLAME_COLORS = [
+          { id: 'natural',  name: 'Natural',  outer: 'from-blue-600 via-orange-500 to-yellow-200',   inner: 'from-blue-400 via-yellow-200 to-white' },
+          { id: 'bunsen',   name: 'Bunsen',   outer: 'from-blue-800 via-blue-600 to-blue-300',       inner: 'from-blue-600 via-blue-200 to-white' },
+          { id: 'chemical', name: 'Chemical', outer: 'from-green-800 via-green-500 to-yellow-200',   inner: 'from-green-600 via-yellow-100 to-white' },
+          { id: 'void',     name: 'Void',     outer: 'from-purple-900 via-purple-600 to-fuchsia-400',inner: 'from-purple-700 via-fuchsia-300 to-white' },
+          { id: 'plasma',   name: 'Plasma',   outer: 'from-pink-700 via-pink-500 to-rose-300',       inner: 'from-rose-500 via-rose-200 to-white' },
+        ];
+
+        const FLAME_STYLES = [
+          { id: 'natural', name: 'Natural',   scaleY: 1,   speed: '0.2s' },
+          { id: 'torch',   name: 'Jet Torch', scaleY: 1.4, speed: '0.1s' },
+          { id: 'wild',    name: 'Wild',      scaleY: 0.9, speed: '0.3s' },
+        ];
+
+        // --- Main Component ---
+        function ZippoGame() {
+          const [isOpen, setIsOpen] = useState(false);
+          const [isLit, setIsLit] = useState(false);
+          const [intensity, setIntensity] = useState(60);
+          const [isMuted, setIsMuted] = useState(false);
+          const [wheelRotation, setWheelRotation] = useState(0);
+          const [showSpark, setShowSpark] = useState(false);
+          const [activeItem, setActiveItem] = useState('none');
+          const [itemStatus, setItemStatus] = useState('idle');
+          const [isBlowing, setIsBlowing] = useState(false);
+          const [boomTriggered, setBoomTriggered] = useState(false);
+          const [activeTab, setActiveTab] = useState('play');
+          const [selectedDesign, setSelectedDesign] = useState('classic');
+          const [selectedColor, setSelectedColor] = useState('gold');
+          const [selectedFlameColor, setSelectedFlameColor] = useState('natural');
+          const [selectedFlameStyle, setSelectedFlameStyle] = useState('natural');
+
+          const currentColor = COLORS.find(c => c.id === selectedColor) || COLORS[0];
+          const currentFlameColor = FLAME_COLORS.find(c => c.id === selectedFlameColor) || FLAME_COLORS[0];
+          const currentFlameStyle = FLAME_STYLES.find(s => s.id === selectedFlameStyle) || FLAME_STYLES[0];
+
+          const handleInteraction = () => audio.init();
+
+          const toggleLid = () => {
+            handleInteraction();
+            const newState = !isOpen;
+            setIsOpen(newState);
+            audio.playClick(newState ? 'open' : 'close');
+            if (!newState && isLit) {
+              setIsLit(false);
+              audio.stopBurn();
+              if (activeItem === 'dynamite' && itemStatus === 'active') setItemStatus('idle');
+            }
+          };
+
+          const strikeWheel = () => {
+            handleInteraction();
+            if (!isOpen) return;
+            setWheelRotation(prev => prev + 180);
+            audio.playStrike();
+            setShowSpark(true);
+            setTimeout(() => setShowSpark(false), 150);
+            if (!isLit && Math.random() < 0.7) {
+              setTimeout(() => { setIsLit(true); audio.startBurn(intensity); }, 100);
+            }
+          };
+
+          const handleBlow = () => {
+            handleInteraction();
+            if (!isOpen) return;
+            setIsBlowing(true);
+            audio.playBlow();
+            setTimeout(() => {
+              if (isLit) { setIsLit(false); audio.stopBurn(); }
+              setIsBlowing(false);
+            }, 400);
+          };
+
+          const triggerItem = (itemType) => {
+            handleInteraction();
+            if (activeItem === itemType && itemStatus === 'done') {
+              setActiveItem('none'); setItemStatus('idle'); return;
+            }
+            if (activeItem !== itemType) {
+              setActiveItem(itemType); setItemStatus('idle');
+              setTimeout(() => { if (isOpen) startItemSequence(itemType); }, 100);
+              return;
+            }
+            if (itemStatus === 'idle') startItemSequence(itemType);
+          };
+
+          const startItemSequence = (itemType) => {
+            setItemStatus('active');
+            if (itemType === 'cigarette') {
+              setTimeout(() => {
+                if (isLit) { setItemStatus('done'); audio.playSizzle(); }
+                else setItemStatus('idle');
+              }, 2000);
+            }
+            if (itemType === 'dynamite') {
+              setTimeout(() => {
+                if (isLit) {
+                  audio.playFuse();
+                  setTimeout(() => {
+                    audio.playBang();
+                    setItemStatus('exploded');
+                    setBoomTriggered(true);
+                    setIsLit(false); audio.stopBurn();
+                    setTimeout(() => {
+                      setBoomTriggered(false);
+                      setTimeout(() => setItemStatus('idle'), 1500);
+                    }, 1000);
+                  }, 2000);
+                } else setItemStatus('idle');
+              }, 700);
+            }
+            if (itemType === 'bbq') {
+              setTimeout(() => {
+                if (isLit) { setItemStatus('done'); audio.playSizzle(); }
+                else setItemStatus('idle');
+              }, 1000);
+            }
+          };
+
+          const handleIntensityChange = (e) => {
+            const val = parseInt(e.target.value);
+            setIntensity(val);
+            if (isLit) audio.updateBurnVolume(val);
+          };
+
+          const toggleMute = () => { setIsMuted(!isMuted); audio.setMute(!isMuted); };
+
+          useEffect(() => { return () => audio.stopBurn(); }, []);
+
+          const getItemTransform = (type, status) => {
+            if (type === 'cigarette') {
+              if (status === 'idle')   return 'translateX(0) translateY(0) rotate(0deg)';
+              if (status === 'active') return 'translateX(-105px) translateY(-230px) rotate(-45deg)';
+              if (status === 'done')   return 'translateX(0) translateY(0) rotate(0deg)';
+            }
+            if (type === 'dynamite') {
+              if (status === 'idle')     return 'translateX(0) translateY(0) rotate(0deg)';
+              if (status === 'active')   return 'translateX(-100px) translateY(-220px) rotate(45deg)';
+              if (status === 'exploded') return 'translateX(-100px) translateY(-220px) scale(2.0) opacity(0)';
+            }
+            if (type === 'bbq') {
+              if (status === 'idle')   return 'translateX(0) translateY(0) rotate(0deg)';
+              if (status === 'active') return 'translateX(-110px) translateY(-200px) rotate(45deg)';
+              if (status === 'done')   return 'translateX(0) translateY(0) rotate(0deg)';
+            }
+            return 'translateX(0) translateY(0)';
+          };
+
+          return (
+            <div
+              className={`flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-neutral-100 p-4 select-none overflow-hidden font-sans transition-transform duration-100 ${boomTriggered ? 'animate-shake' : ''}`}
+              onClick={handleInteraction}
+            >
+              <div className={`fixed inset-0 bg-white pointer-events-none z-[100] transition-opacity duration-500 ${boomTriggered ? 'opacity-80' : 'opacity-0'}`}></div>
+
+              <div className="absolute top-8 left-0 w-full text-center pointer-events-none z-10">
+                <h1 className="text-4xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-b from-neutral-200 to-neutral-600 drop-shadow-sm font-serif opacity-90">IGNIS</h1>
+                <p className="text-xs text-neutral-500 tracking-widest mt-2 uppercase">Customizer Edition</p>
+              </div>
+
+              <div className="relative w-full max-w-sm h-96 flex flex-col items-center justify-center mb-6 mt-12">
+                <div className="relative w-40 h-64 perspective-1000">
+
+                  {/* Cigarette */}
+                  {activeItem === 'cigarette' && (
+                    <div className="absolute z-40 w-4 h-48 rounded-b-md shadow-2xl transition-all duration-700 ease-in-out origin-bottom"
+                      style={{ right: '-50px', bottom: '0px', transform: getItemTransform('cigarette', itemStatus) }}>
+                      <div className="w-full h-full relative flex flex-col items-center">
+                        <div className="w-full h-12 bg-[#c98e4b] border-b border-neutral-300 opacity-90 relative shrink-0 z-20"
+                          style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 3px)' }}></div>
+                        <div className="w-full h-16 bg-neutral-100 relative shrink-0 z-10">
+                          <div className="absolute top-6 w-full text-center text-[5px] text-neutral-300 font-serif opacity-70 rotate-90 tracking-widest">ROYAL</div>
+                        </div>
+                        <div className="w-full bg-neutral-100 transition-all ease-linear relative"
+                          style={{ height: itemStatus === 'done' ? '0%' : '100%', transitionDuration: itemStatus === 'done' ? '60s' : '0s' }}>
+                          <div className={`absolute bottom-0 w-full h-3 rounded-b-md transition-all duration-500 ${itemStatus === 'done' ? 'bg-orange-500 opacity-100 animate-pulse' : 'bg-neutral-300 opacity-0'}`}
+                            style={{ boxShadow: itemStatus === 'done' ? '0 0 10px 2px rgba(255,100,0,0.8)' : 'none' }}></div>
+                          {itemStatus === 'done' && (
+                            <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-full flex justify-center pointer-events-none">
+                              <div className="absolute bottom-0 w-2 h-2 bg-neutral-400 rounded-full animate-smoke opacity-0"></div>
+                              <div className="absolute bottom-0 w-3 h-3 bg-neutral-300 rounded-full animate-smoke opacity-0" style={{ animationDelay: '0.5s' }}></div>
+                              <div className="absolute bottom-0 w-2 h-2 bg-neutral-500 rounded-full animate-smoke opacity-0" style={{ animationDelay: '1.0s' }}></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dynamite */}
+                  {activeItem === 'dynamite' && (
+                    <div className={`absolute z-40 w-8 h-40 bg-red-700 rounded-full shadow-2xl transition-all duration-700 ease-in-out origin-bottom ${itemStatus === 'exploded' ? 'opacity-0' : 'opacity-100'}`}
+                      style={{ right: '-60px', bottom: '0px', transform: getItemTransform('dynamite', itemStatus), boxShadow: 'inset -5px 0 10px rgba(0,0,0,0.3)' }}>
+                      <div className="absolute top-1/2 left-0 w-full h-8 bg-yellow-100 opacity-80 flex items-center justify-center">
+                        <span className="text-[10px] font-black text-red-900 tracking-widest">TNT</span>
+                      </div>
+                      <div className="absolute bottom-[-15px] left-1/2 -translate-x-1/2 w-1 h-4 bg-neutral-400"></div>
+                      {isLit && itemStatus === 'active' && (
+                        <div className="absolute bottom-[-20px] left-1/2 -translate-x-1/2">
+                          <div className="w-2 h-2 bg-yellow-200 rounded-full animate-ping"></div>
+                          <div className="absolute top-0 left-0 w-1 h-1 bg-white rounded-full animate-bounce"></div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* BBQ */}
+                  {activeItem === 'bbq' && (
+                    <div className="absolute z-40 transition-all duration-1000 ease-in-out origin-bottom-right"
+                      style={{ right: '-80px', bottom: '20px', transform: getItemTransform('bbq', itemStatus) }}>
+                      <div className="relative w-4 h-48">
+                        <div className="absolute left-1/2 -translate-x-1/2 top-0 w-1 h-full bg-[#5c4033] rounded-full shadow-sm"></div>
+                        {[2, 8, 14].map((bottom, i) => (
+                          <div key={i}
+                            className={`absolute left-1/2 -translate-x-1/2 w-10 h-8 rounded-md transition-colors duration-1000 z-10 ${itemStatus === 'done' ? 'bg-[#5D4037]' : 'bg-rose-400'}`}
+                            style={{ bottom: `${bottom * 4}px`, boxShadow: itemStatus === 'done' ? 'inset 1px 1px 3px rgba(0,0,0,0.6)' : 'inset 1px 1px 3px rgba(255,255,255,0.3)' }}>
+                            {itemStatus === 'done' && <div className="absolute top-3 w-full h-[1px] bg-black/40"></div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Flame */}
+                  <div
+                    className={`absolute left-1/2 -translate-x-1/2 bottom-[145px] transition-all duration-300 z-10 pointer-events-none ${isLit ? 'opacity-100' : 'opacity-0'}`}
+                    style={{
+                      transform: isBlowing
+                        ? 'translateX(20px) scale(0.4) skewX(20deg)'
+                        : `translateX(-50%) scale(${0.5 + (intensity / 100)}) scaleY(${currentFlameStyle.scaleY})`,
+                      filter: `blur(${Math.max(0, 2 - (intensity / 40))}px)`
+                    }}
+                  >
+                    <div className="relative w-12 h-20">
+                      <div className={`absolute bottom-0 w-full h-full bg-gradient-to-t ${currentFlameColor.outer} rounded-full animate-flicker opacity-90 blur-sm mix-blend-screen transform origin-bottom`}
+                        style={{ animationDuration: currentFlameStyle.speed }}></div>
+                      <div className={`absolute bottom-0 left-1 w-10 h-16 bg-gradient-to-t ${currentFlameColor.inner} rounded-full animate-flicker-fast opacity-80 blur-md mix-blend-screen transform origin-bottom`}
+                        style={{ animationDuration: (parseFloat(currentFlameStyle.speed) * 0.5) + 's' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Sparks */}
+                  {showSpark && (
+                    <div className="absolute top-[80px] right-[25px] z-50 pointer-events-none">
+                      <div className="relative">
+                        <div className="absolute w-2 h-2 bg-yellow-100 rounded-full blur-[1px] animate-ping"></div>
+                        <div className="absolute w-1 h-1 bg-white rounded-full top-2 right-1 blur-[0.5px] animate-ping delay-75"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chimney */}
+                  <div className="absolute top-[68px] left-[15%] w-[70%] h-16 bg-neutral-300 rounded-t-sm z-20 border border-neutral-400 overflow-hidden shadow-inner bg-gradient-to-r from-neutral-400 via-neutral-200 to-neutral-400">
+                    <div className="grid grid-cols-3 gap-1 mt-2 px-1">
+                      {[...Array(9)].map((_, i) => (
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-neutral-800 opacity-60 mx-auto"></div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Wheel */}
+                  <div
+                    className="absolute top-[65px] right-[16px] w-8 h-8 rounded-full bg-neutral-600 z-30 border-2 border-neutral-400 cursor-pointer shadow-lg hover:brightness-110 active:scale-95 transition-transform"
+                    style={{ background: 'repeating-linear-gradient(45deg, #444 0px, #444 2px, #222 3px, #222 5px)', transform: `rotate(${wheelRotation}deg)` }}
+                    onClick={(e) => { e.stopPropagation(); strikeWheel(); }}
+                  ></div>
+
+                  {/* Body */}
+                  <div className={`absolute bottom-0 w-full h-40 rounded-lg shadow-2xl z-30 border flex items-center justify-center cursor-pointer transition-all duration-500 bg-gradient-to-b ${currentColor.gradient} ${currentColor.border}`}
+                    onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute top-0 left-2 w-2 h-full bg-white/20 blur-sm z-10"></div>
+                    {selectedDesign === 'venetian' && <div className="w-full h-full absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, #000 50%)', backgroundSize: '10px 100%' }}></div>}
+                    {selectedDesign === 'ace' && <div className="opacity-40 text-black z-20 mix-blend-overlay"><div className="text-6xl">♠</div></div>}
+                    {selectedDesign === 'dragon' && <div className="opacity-30 text-black z-20 mix-blend-overlay"><Crown size={64} strokeWidth={1} /></div>}
+                    {selectedDesign === 'carbon' && <div className="w-full h-full absolute inset-0 opacity-40 mix-blend-overlay" style={{ backgroundImage: `linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)`, backgroundSize: '20px 20px', backgroundPosition: '0 0, 10px 10px' }}></div>}
+                    {selectedDesign === 'geo' && <div className="w-full h-full absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle, #000 2px, transparent 2.5px)', backgroundSize: '12px 12px' }}></div>}
+                  </div>
+
+                  {/* Lid */}
+                  <div
+                    className="absolute top-0 w-full h-24 z-50 cursor-pointer transition-all duration-300 ease-out"
+                    onClick={toggleLid}
+                    style={{ transform: isOpen ? 'rotate(-130deg) translateY(-10px)' : 'rotate(0deg)', transformOrigin: '10px 96px' }}
+                  >
+                    <div className={`w-full h-full rounded-t-lg rounded-b-sm border shadow-xl relative overflow-hidden bg-gradient-to-b ${currentColor.gradient} ${currentColor.border}`}>
+                      <div className="absolute bottom-0 w-full h-4 bg-neutral-800/20"></div>
+                      <div className="absolute top-0 left-2 w-2 h-full bg-white/20 blur-sm z-10"></div>
+                      {selectedDesign === 'venetian' && <div className="w-full h-full absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, #000 50%)', backgroundSize: '10px 100%' }}></div>}
+                      {selectedDesign === 'carbon' && <div className="w-full h-full absolute inset-0 opacity-40 mix-blend-overlay" style={{ backgroundImage: `linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)`, backgroundSize: '20px 20px', backgroundPosition: '0 0, 10px 10px' }}></div>}
+                      {selectedDesign === 'geo' && <div className="w-full h-full absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle, #000 2px, transparent 2.5px)', backgroundSize: '12px 12px' }}></div>}
+                    </div>
+                    <div className="absolute bottom-[2px] -left-2 w-4 h-6 bg-neutral-400 rounded-sm shadow-md"></div>
+                  </div>
+                </div>
+                <div className="absolute -bottom-10 w-40 h-4 bg-black/40 blur-xl rounded-[100%]"></div>
+              </div>
+
+              {/* Control Panel */}
+              <div className="w-full max-w-md bg-neutral-800/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300 flex flex-col h-64">
+                <div className="flex border-b border-white/5 shrink-0">
+                  {[
+                    { id: 'play',   icon: <Flame size={16} />,   label: 'Play' },
+                    { id: 'design', icon: <Hammer size={16} />,  label: 'Pattern' },
+                    { id: 'color',  icon: <Palette size={16} />, label: 'Finish' },
+                    { id: 'flame',  icon: <Zap size={16} />,     label: 'Flame' },
+                  ].map((tab) => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={`flex-1 py-4 text-[10px] md:text-xs font-medium tracking-wide transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 ${activeTab === tab.id ? 'bg-white/10 text-white border-b-2 border-amber-500' : 'text-neutral-500 hover:text-neutral-300'}`}>
+                      {tab.icon} <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar relative">
+
+                  {activeTab === 'play' && (
+                    <div className="space-y-4 h-full flex flex-col justify-center">
+                      <div className="flex justify-center gap-2 mb-2">
+                        <button onClick={handleBlow} disabled={!isOpen}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-16 h-16 border border-neutral-700/50 ${isOpen ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300' : 'opacity-30 bg-neutral-900 cursor-not-allowed text-neutral-600'}`}>
+                          <Wind size={20} className={`mb-1 ${isBlowing ? 'text-blue-300 animate-pulse' : ''}`} />
+                          <span className="text-[8px] font-bold uppercase">Blow</span>
+                        </button>
+                        <div className="w-[1px] bg-white/10 mx-1"></div>
+                        <button onClick={() => triggerItem('cigarette')}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-16 h-16 border border-neutral-700/50 ${activeItem === 'cigarette' ? 'bg-amber-900/30 text-amber-500 border-amber-800' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'}`}>
+                          <CircleDashed size={20} className={`mb-1 ${activeItem === 'cigarette' && itemStatus === 'active' ? 'animate-spin' : ''}`} />
+                          <span className="text-[8px] font-bold uppercase">Smoke</span>
+                        </button>
+                        <button onClick={() => triggerItem('dynamite')}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-16 h-16 border border-neutral-700/50 ${activeItem === 'dynamite' ? 'bg-red-900/30 text-red-500 border-red-800' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'}`}>
+                          <Bomb size={20} className="mb-1" />
+                          <span className="text-[8px] font-bold uppercase">TNT</span>
+                        </button>
+                        <button onClick={() => triggerItem('bbq')}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all w-16 h-16 border border-neutral-700/50 ${activeItem === 'bbq' ? 'bg-orange-900/30 text-orange-200 border-orange-800' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'}`}>
+                          <Utensils size={20} className="mb-1" />
+                          <span className="text-[8px] font-bold uppercase">BBQ</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Flame Intensity</span>
+                        <span className="font-mono text-amber-500 text-sm">{intensity}%</span>
+                      </div>
+                      <input type="range" min="10" max="100" value={intensity} onChange={handleIntensityChange}
+                        className="w-full h-1.5 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="flex gap-3">
+                          <button onClick={toggleLid} className="flex flex-col items-center gap-2 group transition-all">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg ${isOpen ? 'bg-amber-600/20 text-amber-500 border border-amber-500/30' : 'bg-neutral-700 text-neutral-300 border border-neutral-600 group-hover:bg-neutral-600'}`}>
+                              {isOpen ? <X size={20} /> : <ArrowUpFromLine size={20} />}
+                            </div>
+                          </button>
+                          <button onClick={() => { if (isOpen) strikeWheel(); }} disabled={!isOpen}
+                            className={`flex flex-col items-center gap-2 group transition-all ${!isOpen ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg ${isOpen ? 'bg-neutral-200 text-black hover:scale-105 active:scale-95' : 'bg-neutral-800 text-neutral-500 border border-neutral-700'}`}>
+                              <Sparkles size={20} />
+                            </div>
+                          </button>
+                        </div>
+                        <button onClick={toggleMute}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isMuted ? 'text-red-400 bg-red-400/10' : 'text-neutral-400 hover:text-white hover:bg-white/10'}`}>
+                          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'design' && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {DESIGNS.map((design) => (
+                        <button key={design.id} onClick={() => setSelectedDesign(design.id)}
+                          className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${selectedDesign === design.id ? 'bg-white/10 border-amber-500/50 text-white' : 'bg-neutral-800 border-transparent text-neutral-500 hover:bg-neutral-700'}`}>
+                          <div className={`p-2 rounded-full ${selectedDesign === design.id ? 'bg-amber-500 text-black' : 'bg-neutral-700 text-neutral-400'}`}>
+                            {design.icon}
+                          </div>
+                          <span className="text-[10px] font-medium uppercase">{design.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeTab === 'color' && (
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
+                      {COLORS.map((color) => (
+                        <button key={color.id} onClick={() => setSelectedColor(color.id)} className="flex flex-col items-center gap-2 group">
+                          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${color.gradient} shadow-lg transition-all transform ${selectedColor === color.id ? 'ring-2 ring-offset-2 ring-offset-neutral-900 ring-white scale-110' : 'opacity-70 group-hover:opacity-100 group-hover:scale-105'}`}></div>
+                          <span className={`text-[9px] font-medium transition-colors text-center leading-tight ${selectedColor === color.id ? 'text-white' : 'text-neutral-600'}`}>{color.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeTab === 'flame' && (
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3">Flame Color</h3>
+                        <div className="grid grid-cols-5 gap-2">
+                          {FLAME_COLORS.map((fColor) => (
+                            <button key={fColor.id} onClick={() => setSelectedFlameColor(fColor.id)} title={fColor.name}
+                              className={`h-10 rounded-lg bg-gradient-to-br ${fColor.outer} transition-all ${selectedFlameColor === fColor.id ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105 opacity-100' : 'opacity-50 hover:opacity-100'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3">Flame Shape</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {FLAME_STYLES.map((fStyle) => (
+                            <button key={fStyle.id} onClick={() => setSelectedFlameStyle(fStyle.id)}
+                              className={`py-2 px-1 text-[10px] uppercase font-bold rounded-lg border transition-all ${selectedFlameStyle === fStyle.id ? 'bg-white/10 border-white text-white' : 'bg-neutral-800 border-neutral-700 text-neutral-500 hover:border-neutral-500'}`}>
+                              {fStyle.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+              <style>{`
+                @keyframes flicker {
+                  0%   { transform: scaleY(1) skewX(0deg); opacity: 0.9; }
+                  25%  { transform: scaleY(1.1) skewX(-2deg); opacity: 0.8; }
+                  50%  { transform: scaleY(0.9) skewX(2deg); opacity: 1; }
+                  75%  { transform: scaleY(1.15) skewX(-1deg); opacity: 0.9; }
+                  100% { transform: scaleY(1) skewX(0deg); opacity: 0.9; }
+                }
+                @keyframes flicker-fast {
+                  0%   { transform: scaleY(1) translate(0,0); }
+                  50%  { transform: scaleY(1.05) translate(1px,-1px); }
+                  100% { transform: scaleY(1) translate(0,0); }
+                }
+                @keyframes smoke {
+                  0%   { transform: translateY(0) scale(1); opacity: 0; }
+                  10%  { opacity: 0.4; }
+                  100% { transform: translateY(-40px) scale(2); opacity: 0; }
+                }
+                @keyframes shake {
+                  0%, 100% { transform: translate(0,0); }
+                  10%, 30%, 50%, 70%, 90% { transform: translate(-10px,-10px); }
+                  20%, 40%, 60%, 80%      { transform: translate(10px,10px); }
+                }
+                .animate-flicker      { animation: flicker 0.2s infinite alternate ease-in-out; }
+                .animate-flicker-fast { animation: flicker-fast 0.1s infinite alternate ease-in-out; }
+                .animate-smoke        { animation: smoke 2s infinite ease-out; }
+                .animate-shake        { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+                .perspective-1000     { perspective: 1000px; }
+                .custom-scrollbar::-webkit-scrollbar       { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+              `}</style>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ZippoGame />);
+    </script>
+</body>
+</html>

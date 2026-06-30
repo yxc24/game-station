@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>大富翁：马来西亚议会之路</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #d1d5db; /* gray-300 */
+            overflow: hidden;
+        }
+
+        .board {
+            display: grid;
+            /* 1 corner + 11 spaces + 1 corner = 13 columns/rows */
+            grid-template-columns: 100px repeat(11, 65px) 100px;
+            grid-template-rows: 100px repeat(11, 65px) 100px;
+            gap: 2px;
+            background-color: #9ca3af; /* gray-400 */
+            border: 3px solid #4b5563; /* gray-600 */
+            padding: 2px;
+            position: relative;
+        }
+
+        .center-area {
+            grid-column: 2 / 13;
+            grid-row: 2 / 13;
+            background-color: #d1d5db;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 2px solid #9ca3af;
+        }
+
+        .space {
+            background-color: #f3f4f6; /* gray-100 */
+            border: 1px solid #ccc;
+            position: relative;
+            font-size: 9px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px;
+            box-sizing: border-box;
+            line-height: 1.1;
+        }
+
+        .corner { font-size: 12px; font-weight: bold; }
+        .space .name { padding: 2px 1px; }
+        .color-bar { width: 100%; height: 15px; border-bottom: 1px solid #ccc; }
+
+        /* --- Grid Positioning for 48 spaces --- */
+        /* Bottom Row */
+        .space[data-id="0"] { grid-column: 13; grid-row: 13; }
+        .space[data-id="1"] { grid-column: 12; grid-row: 13; }
+        .space[data-id="2"] { grid-column: 11; grid-row: 13; }
+        .space[data-id="3"] { grid-column: 10; grid-row: 13; }
+        .space[data-id="4"] { grid-column: 9; grid-row: 13; }
+        .space[data-id="5"] { grid-column: 8; grid-row: 13; }
+        .space[data-id="6"] { grid-column: 7; grid-row: 13; }
+        .space[data-id="7"] { grid-column: 6; grid-row: 13; }
+        .space[data-id="8"] { grid-column: 5; grid-row: 13; }
+        .space[data-id="9"] { grid-column: 4; grid-row: 13; }
+        .space[data-id="10"] { grid-column: 3; grid-row: 13; }
+        .space[data-id="11"] { grid-column: 2; grid-row: 13; }
+        /* Left Column */
+        .space[data-id="12"] { grid-column: 1; grid-row: 13; }
+        .space[data-id="13"] { grid-column: 1; grid-row: 12; }
+        .space[data-id="14"] { grid-column: 1; grid-row: 11; }
+        .space[data-id="15"] { grid-column: 1; grid-row: 10; }
+        .space[data-id="16"] { grid-column: 1; grid-row: 9; }
+        .space[data-id="17"] { grid-column: 1; grid-row: 8; }
+        .space[data-id="18"] { grid-column: 1; grid-row: 7; }
+        .space[data-id="19"] { grid-column: 1; grid-row: 6; }
+        .space[data-id="20"] { grid-column: 1; grid-row: 5; }
+        .space[data-id="21"] { grid-column: 1; grid-row: 4; }
+        .space[data-id="22"] { grid-column: 1; grid-row: 3; }
+        .space[data-id="23"] { grid-column: 1; grid-row: 2; }
+        /* Top Row */
+        .space[data-id="24"] { grid-column: 1; grid-row: 1; }
+        .space[data-id="25"] { grid-column: 2; grid-row: 1; }
+        .space[data-id="26"] { grid-column: 3; grid-row: 1; }
+        .space[data-id="27"] { grid-column: 4; grid-row: 1; }
+        .space[data-id="28"] { grid-column: 5; grid-row: 1; }
+        .space[data-id="29"] { grid-column: 6; grid-row: 1; }
+        .space[data-id="30"] { grid-column: 7; grid-row: 1; }
+        .space[data-id="31"] { grid-column: 8; grid-row: 1; }
+        .space[data-id="32"] { grid-column: 9; grid-row: 1; }
+        .space[data-id="33"] { grid-column: 10; grid-row: 1; }
+        .space[data-id="34"] { grid-column: 11; grid-row: 1; }
+        .space[data-id="35"] { grid-column: 12; grid-row: 1; }
+        /* Right Column */
+        .space[data-id="36"] { grid-column: 13; grid-row: 1; }
+        .space[data-id="37"] { grid-column: 13; grid-row: 2; }
+        .space[data-id="38"] { grid-column: 13; grid-row: 3; }
+        .space[data-id="39"] { grid-column: 13; grid-row: 4; }
+        .space[data-id="40"] { grid-column: 13; grid-row: 5; }
+        .space[data-id="41"] { grid-column: 13; grid-row: 6; }
+        .space[data-id="42"] { grid-column: 13; grid-row: 7; }
+        .space[data-id="43"] { grid-column: 13; grid-row: 8; }
+        .space[data-id="44"] { grid-column: 13; grid-row: 9; }
+        .space[data-id="45"] { grid-column: 13; grid-row: 10; }
+        .space[data-id="46"] { grid-column: 13; grid-row: 11; }
+        .space[data-id="47"] { grid-column: 13; grid-row: 12; }
+
+        .player-token {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease-in-out;
+            z-index: 10;
+        }
+
+        .owner-indicator {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1px solid #fff;
+        }
+        
+        .jail-box {
+            position: absolute;
+            width: 60%;
+            height: 60%;
+            border: 1px solid black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: black;
+            background: orange;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen">
+
+<div class="board" id="board">
+    <!-- Center Area -->
+    <div class="center-area">
+        <h1 class="text-xl font-bold text-gray-800">大富翁：议会之路</h1>
+        <div id="player-info" class="w-full grid grid-cols-2 gap-2"></div>
+        <div id="message-log" class="w-full h-20 bg-white/50 rounded p-2 overflow-y-auto text-xs text-gray-700">欢迎来到马来西亚政坛！</div>
+        <div class="flex items-center space-x-4">
+            <div id="dice-container" class="flex space-x-2">
+                <div id="die1" class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl font-bold shadow-md">?</div>
+                <div id="die2" class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl font-bold shadow-md">?</div>
+            </div>
+            <button id="roll-dice-btn" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg hover:bg-red-600 transition text-sm">掷骰子</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-lg mx-4">
+        <h2 id="modal-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+        <div id="modal-body" class="mb-6 text-gray-700"></div>
+        <div id="modal-actions" class="flex justify-end space-x-3"></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- 数据定义 ---
+    const boardData = [
+        { id: 0, name: "起点", type: "go" },
+        { id: 1, name: "八打灵 (Petaling)", type: "property", cost: { malay: 40000, chinese: 10000, indian: 6000, east_malaysian: 0 }, rent: 14000 },
+        { id: 2, name: "双溪大年 (Sg. Petani)", type: "property", cost: { malay: 40000, chinese: 8000, indian: 2000, east_malaysian: 0 }, rent: 13000 },
+        { id: 3, name: "亚庇 (Kota Kinabalu)", type: "property", cost: { malay: 5000, chinese: 3000, indian: 2000, east_malaysian: 40000 }, rent: 13000 },
+        { id: 4, name: "奖金", type: "prize" },
+        { id: 5, name: "新山 (Johor Bahru)", type: "property", cost: { malay: 33000, chinese: 20000, indian: 6000, east_malaysian: 0 }, rent: 15000 },
+        { id: 6, name: "布城 (Putrajaya)", type: "property", cost: { malay: 20000, chinese: 7500, indian: 2500, east_malaysian: 0 }, rent: 8000 },
+        { id: 7, name: "乔治市 (George Town)", type: "property", cost: { malay: 20000, chinese: 30000, indian: 6000, east_malaysian: 0 }, rent: 14000 },
+        { id: 8, name: "机会", type: "chance" },
+        { id: 9, name: "乌鲁冷岳 (Hulu Langat)", type: "property", cost: { malay: 30000, chinese: 20000, indian: 5000, east_malaysian: 0 }, rent: 14000 },
+        { id: 10, name: "怡保 (Ipoh)", type: "property", cost: { malay: 23000, chinese: 15000, indian: 5000, east_malaysian: 0 }, rent: 11000 },
+        { id: 11, name: "芙蓉 (Seremban)", type: "property", cost: { malay: 25000, chinese: 20000, indian: 6000, east_malaysian: 0 }, rent: 13000 },
+        { id: 12, name: "监狱", type: "jail" },
+        { id: 13, name: "关丹 (Kuantan)", type: "property", cost: { malay: 25000, chinese: 12000, indian: 8000, east_malaysian: 0 }, rent: 11000 },
+        { id: 14, name: "古晋 (Kuching)", type: "property", cost: { malay: 3000, chinese: 1000, indian: 1000, east_malaysian: 40000 }, rent: 11000 },
+        { id: 15, name: "巴生 (Klang)", type: "property", cost: { malay: 20000, chinese: 25000, indian: 6000, east_malaysian: 0 }, rent: 13000 },
+        { id: 16, name: "命运", type: "fate" },
+        { id: 17, name: "峇株巴辖 (Batu Pahat)", type: "property", cost: { malay: 25000, chinese: 15000, indian: 6000, east_malaysian: 0 }, rent: 12000 },
+        { id: 18, name: "吉隆坡 (Kuala Lumpur)", type: "property", cost: { malay: 45000, chinese: 30000, indian: 8000, east_malaysian: 0 }, rent: 21000 },
+        { id: 19, name: "哥打巴鲁 (Kota Bharu)", type: "property", cost: { malay: 35000, chinese: 5000, indian: 1000, east_malaysian: 0 }, rent: 10000 },
+        { id: 20, name: "太平 (Taiping)", type: "property", cost: { malay: 20000, chinese: 15000, indian: 5000, east_malaysian: 0 }, rent: 10000 },
+        { id: 21, name: "罚款", type: "fine" },
+        { id: 22, name: "山打根 (Sandakan)", type: "property", cost: { malay: 3000, chinese: 1000, indian: 1000, east_malaysian: 30000 }, rent: 9000 },
+        { id: 23, name: "瓜拉登嘉楼 (K. Terengganu)", type: "property", cost: { malay: 40000, chinese: 5000, indian: 2000, east_malaysian: 0 }, rent: 12000 },
+        { id: 24, name: "国际事务", type: "international-affair" },
+        { id: 25, name: "大山脚 (Bukit Mertajam)", type: "property", cost: { malay: 20000, chinese: 10000, indian: 5000, east_malaysian: 0 }, rent: 9000 },
+        { id: 26, name: "鹅唛 (Gombak)", type: "property", cost: { malay: 20000, chinese: 10000, indian: 5000, east_malaysian: 0 }, rent: 9000 },
+        { id: 27, name: "机会", type: "chance" },
+        { id: 28, name: "美里 (Miri)", type: "property", cost: { malay: 2000, chinese: 1000, indian: 1000, east_malaysian: 25000 }, rent: 7000 },
+        { id: 29, name: "斗湖 (Tawau)", type: "property", cost: { malay: 2000, chinese: 1000, indian: 1000, east_malaysian: 25000 }, rent: 7000 },
+        { id: 30, name: "纳闽 (Labuan)", type: "property", cost: { malay: 2000, chinese: 1000, indian: 1000, east_malaysian: 10000 }, rent: 4000 },
+        { id: 31, name: "居銮 (Kluang)", type: "property", cost: { malay: 20000, chinese: 10000, indian: 1000, east_malaysian: 0 }, rent: 8000 },
+        { id: 32, name: "罚款", type: "fine" },
+        { id: 33, name: "安顺 (Teluk Intan)", type: "property", cost: { malay: 15000, chinese: 7500, indian: 5000, east_malaysian: 0 }, rent: 7000 },
+        { id: 34, name: "亚罗士打 (Alor Setar)", type: "property", cost: { malay: 35000, chinese: 2000, indian: 1000, east_malaysian: 0 }, rent: 10000 },
+        { id: 35, name: "瓜拉冷岳 (Kuala Langat)", type: "property", cost: { malay: 30000, chinese: 30000, indian: 4000, east_malaysian: 0 }, rent: 16000 },
+        { id: 36, name: "国家王宫", type: "palace" },
+        { id: 37, name: "淡马鲁 (Temerloh)", type: "property", cost: { malay: 20000, chinese: 8000, indian: 8000, east_malaysian: 0 }, rent: 9000 },
+        { id: 38, name: "巴西马 (Pasir Mas)", type: "property", cost: { malay: 30000, chinese: 2000, indian: 500, east_malaysian: 0 }, rent: 8000 },
+        { id: 39, name: "奖金", type: "prize" },
+        { id: 40, name: "麻坡 (Muar)", type: "property", cost: { malay: 15000, chinese: 10000, indian: 2000, east_malaysian: 0 }, rent: 7000 },
+        { id: 41, name: "诗巫 (Sibu)", type: "property", cost: { malay: 2000, chinese: 1000, indian: 1000, east_malaysian: 20000 }, rent: 6000 },
+        { id: 42, name: "新加坡 (Singapura)", type: "property", cost: { malay: 8000, chinese: 35000, indian: 5000, east_malaysian: 0 }, rent: 12000 },
+        { id: 43, name: "马六甲市 (Melaka)", type: "property", cost: { malay: 30000, chinese: 15000, indian: 5000, east_malaysian: 0 }, rent: 13000 },
+        { id: 44, name: "命运", type: "fate" },
+        { id: 45, name: "雪邦 (Sepang)", type: "property", cost: { malay: 25000, chinese: 8000, indian: 5000, east_malaysian: 0 }, rent: 10000 },
+        { id: 46, name: "拿笃 (Lahad Datu)", type: "property", cost: { malay: 5000, chinese: 3000, indian: 2000, east_malaysian: 25000 }, rent: 9000 },
+        { id: 47, name: "加央 (Kangar)", type: "property", cost: { malay: 12000, chinese: 500, indian: 500, east_malaysian: 0 }, rent: 3000 },
+    ];
+
+    const chanceCards = [
+        { text: "选区重划对你有利，获得5000混合选票。", action: "get-votes", payload: { wild: 5000 } },
+        { text: "前进到“吉隆坡”。如果路过起点，照样拿钱。", action: "move", position: 18 },
+        { text: "你的竞选伙伴失言，支付$100公关费。", action: "pay-cash", amount: 100 },
+        { text: "获得一张“免控状”。", action: "get-out-of-jail" },
+        { text: "后退三格。", action: "move-relative", amount: -3 },
+        { text: "直接进监狱！", action: "go-to-jail" },
+        { text: "与重要盟友会面，支付$150餐费。", action: "pay-cash", amount: 150 },
+        { text: "拜访你的忠实票仓，前进到“新山”。", action: "move", position: 5 },
+    ];
+
+    const fateCards = [
+        { text: "你的草根活动大获成功，银行奖励你$200。", action: "get-cash", amount: 200 },
+        { text: "被控煽动法令，直接进监狱！", action: "go-to-jail" },
+        { text: "收到一笔匿名政治献金，获得10000混合选票。", action: "get-votes", payload: { wild: 10000 } },
+        { text: "向所有其他玩家拉票，每人给你$50宣传费。", action: "collect-from-all", amount: 50 },
+        { text: "生日快乐！你的支持者为你筹款$100。", action: "get-cash", amount: 100 },
+        { text: "支付$100用于举办群众大会。", action: "pay-cash", amount: 100 },
+        { text: "前进到“起点”。", action: "move", position: 0 },
+    ];
+
+    // --- 游戏状态 ---
+    let players = [];
+    let currentPlayerIndex = 0;
+    let turnInProgress = false;
+
+    // --- DOM 元素 ---
+    const boardElement = document.getElementById('board');
+    const playerInfoElement = document.getElementById('player-info');
+    const messageLogElement = document.getElementById('message-log');
+    const rollDiceBtn = document.getElementById('roll-dice-btn');
+    const die1Element = document.getElementById('die1');
+    const die2Element = document.getElementById('die2');
+    const modalElement = document.getElementById('modal');
+    const modalTitleElement = document.getElementById('modal-title');
+    const modalBodyElement = document.getElementById('modal-body');
+    const modalActionsElement = document.getElementById('modal-actions');
+
+    // --- 初始化函数 ---
+    function initGame() {
+        setupBoard();
+        setupPlayers(2);
+        updateAllUI();
+        logMessage("游戏开始！玩家1的回合。");
+    }
+
+    function setupBoard() {
+        boardData.forEach((spaceData, i) => {
+            const space = document.createElement('div');
+            space.className = 'space';
+            space.dataset.id = i;
+            space.innerHTML = `<div class="name">${spaceData.name}</div>`;
+
+            if (spaceData.type === 'property') {
+                const colors = {
+                    "johor": "#1e40af", "kedah": "#065f46", "sabah": "#7c2d12", "selangor": "#ef4444",
+                    "penang": "#f97316", "perak": "#facc15", "pahang": "#16a34a", "kelantan": "#0891b2",
+                    "sarawak": "#991b1b", "negeri sembilan": "#ca8a04", "kuala lumpur": "#be185d",
+                    "putrajaya": "#4338ca", "labuan": "#047857", "melaka": "#e11d48", "perlis": "#06b6d4",
+                    "singapura": "#4a044e", "terengganu": "#0369a1"
+                };
+                let color = "#6b7280"; // default gray
+                for (const key in colors) {
+                    if (spaceData.name.toLowerCase().includes(key)) {
+                        color = colors[key];
+                        break;
+                    }
+                }
+                space.innerHTML = `<div class="color-bar" style="background-color: ${color};"></div>` + space.innerHTML;
+            }
+            if (i === 12) { space.innerHTML += `<div class="jail-box">探监</div>`; }
+            boardElement.appendChild(space);
+        });
+    }
+
+    function setupPlayers(numPlayers) {
+        players = [];
+        const playerColors = ['bg-blue-600', 'bg-green-600'];
+        const playerTokens = ['PH', 'PN'];
+        for (let i = 0; i < numPlayers; i++) {
+            players.push({
+                id: i,
+                name: `联盟 ${i + 1}`,
+                cash: 20000,
+                votes: { malay: 50000, chinese: 50000, indian: 10000, east_malaysian: 10000, wild: 5000 },
+                position: 0,
+                properties: [],
+                inJail: false,
+                jailTurns: 0,
+                getOutOfJailCards: 0,
+                color: playerColors[i],
+                token: playerTokens[i]
+            });
+            const tokenElement = document.createElement('div');
+            tokenElement.id = `player-${i}-token`;
+            tokenElement.className = `player-token ${playerColors[i]} text-white font-bold`;
+            tokenElement.textContent = playerTokens[i];
+            boardElement.appendChild(tokenElement);
+        }
+    }
+
+    // --- UI 更新函数 ---
+    function updateAllUI() {
+        updatePlayerInfo();
+        updatePlayerTokens();
+    }
+    
+    function k_formatter(num) {
+        return Math.abs(num) > 999 ? Math.sign(num)*((Math.abs(num)/1000).toFixed(1)) + 'k' : Math.sign(num)*Math.abs(num)
+    }
+
+    function updatePlayerInfo() {
+        playerInfoElement.innerHTML = '';
+        players.forEach(player => {
+            const playerDiv = document.createElement('div');
+            playerDiv.className = `p-2 rounded-lg border-2 ${player.id === currentPlayerIndex ? 'border-red-500 shadow-lg' : 'border-gray-400'} bg-white/80 text-xs`;
+            playerDiv.innerHTML = `
+                <div class="font-bold text-base ${player.color.replace('bg','text').replace('-600','')}">${player.name} (${player.token})</div>
+                <div class="font-semibold text-gray-800">现金: $${k_formatter(player.cash)}</div>
+                <div class="grid grid-cols-3 gap-x-1">
+                    <span>M: ${k_formatter(player.votes.malay)}</span>
+                    <span>C: ${k_formatter(player.votes.chinese)}</span>
+                    <span>I: ${k_formatter(player.votes.indian)}</span>
+                    <span>EM: ${k_formatter(player.votes.east_malaysian)}</span>
+                    <span>W: ${k_formatter(player.votes.wild)}</span>
+                </div>
+                ${player.inJail ? '<div class="text-red-600 font-bold">在监狱中</div>' : ''}
+            `;
+            playerInfoElement.appendChild(playerDiv);
+        });
+    }
+
+    function updatePlayerTokens() {
+        players.forEach((player, index) => {
+            const tokenElement = document.getElementById(`player-${index}-token`);
+            const spaceElement = document.querySelector(`.space[data-id="${player.position}"]`);
+            const rect = spaceElement.getBoundingClientRect();
+            const boardRect = boardElement.getBoundingClientRect();
+            const offsetX = (index % 2) * 22 + 5;
+            const offsetY = Math.floor(index / 2) * 22 + 5;
+            tokenElement.style.left = `${rect.left - boardRect.left + offsetX}px`;
+            tokenElement.style.top = `${rect.top - boardRect.top + offsetY}px`;
+        });
+    }
+
+    function logMessage(message) {
+        messageLogElement.innerHTML = message + '<br>' + messageLogElement.innerHTML;
+    }
+
+    // --- 游戏流程函数 ---
+    rollDiceBtn.addEventListener('click', handleTurn);
+
+    async function handleTurn() {
+        if (turnInProgress) return;
+        turnInProgress = true;
+        rollDiceBtn.disabled = true;
+        rollDiceBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+        const currentPlayer = players[currentPlayerIndex];
+        if (currentPlayer.inJail) {
+            await handleJailTurn(currentPlayer);
+            return;
+        }
+
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        die1Element.textContent = d1;
+        die2Element.textContent = d2;
+        logMessage(`${currentPlayer.name} 掷出了 ${d1} 和 ${d2}。`);
+
+        await movePlayer(currentPlayer, d1 + d2);
+        
+        if (d1 !== d2 || currentPlayer.inJail) { // If player went to jail, turn ends
+            endTurn();
+        } else {
+            logMessage(`${currentPlayer.name} 掷出了双骰！可以再掷一次。`);
+            turnInProgress = false;
+            rollDiceBtn.disabled = false;
+            rollDiceBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    async function movePlayer(player, steps) {
+        const oldPosition = player.position;
+        player.position = (player.position + steps) % 48;
+        
+        for (let i = 1; i <= steps; i++) {
+            const pos = (oldPosition + i) % 48;
+            const tokenElement = document.getElementById(`player-${player.id}-token`);
+            const spaceElement = document.querySelector(`.space[data-id="${pos}"]`);
+            const rect = spaceElement.getBoundingClientRect();
+            const boardRect = boardElement.getBoundingClientRect();
+            const offsetX = (player.id % 2) * 22 + 5;
+            const offsetY = Math.floor(player.id / 2) * 22 + 5;
+            tokenElement.style.left = `${rect.left - boardRect.left + offsetX}px`;
+            tokenElement.style.top = `${rect.top - boardRect.top + offsetY}px`;
+            await new Promise(res => setTimeout(res, 80));
+        }
+
+        if (player.position < oldPosition) {
+            logMessage(`${player.name} 经过起点，获得 $2000 现金。`);
+            player.cash += 2000;
+        }
+        
+        updatePlayerInfo();
+        await handleSpaceAction(player, player.position);
+    }
+    
+    async function handleSpaceAction(player, position) {
+        const space = boardData[position];
+        logMessage(`${player.name} 抵达 ${space.name}。`);
+
+        switch (space.type) {
+            case 'property':
+                await handleProperty(player, position);
+                break;
+            case 'chance':
+            case 'fate':
+                await handleCard(player, space.type);
+                break;
+            case 'prize':
+                player.cash += 2000;
+                logMessage(`获得$2000项目奖金！`);
+                break;
+            case 'fine':
+                player.cash -= 1000;
+                logMessage(`支付$1000罚款！`);
+                break;
+            case 'international-affair':
+                player.cash -= 1500;
+                logMessage(`支付$1500进行国事访问。`);
+                break;
+            case 'palace':
+                player.cash += 1000;
+                logMessage(`觐见元首，获得$1000赏赐。`);
+                break;
+            case 'jail':
+                logMessage(`${player.name} 只是来探监。`);
+                break;
+        }
+        updateAllUI();
+    }
+    
+    function canAfford(player, cost) {
+        return player.votes.malay >= cost.malay &&
+               player.votes.chinese >= cost.chinese &&
+               player.votes.indian >= cost.indian &&
+               player.votes.east_malaysian >= cost.east_malaysian;
+    }
+
+    async function handleProperty(player, position) {
+        const space = boardData[position];
+        const owner = players.find(p => p.properties.includes(position));
+
+        if (!owner) {
+            await new Promise(resolve => {
+                const cost = space.cost;
+                const canBuy = canAfford(player, cost);
+                let actions = [{ text: '放弃', className: 'bg-gray-400', callback: () => { hideModal(); resolve(); }}];
+                if (canBuy) {
+                    actions.unshift({ text: `拿下选区`, className: 'bg-green-500', callback: () => {
+                        player.votes.malay -= cost.malay;
+                        player.votes.chinese -= cost.chinese;
+                        player.votes.indian -= cost.indian;
+                        player.votes.east_malaysian -= cost.east_malaysian;
+                        player.properties.push(position);
+                        logMessage(`${player.name} 成功拿下 ${space.name} 选区！`);
+                        const spaceEl = document.querySelector(`.space[data-id="${position}"]`);
+                        const ownerIndicator = document.createElement('div');
+                        ownerIndicator.className = `owner-indicator ${player.color}`;
+                        spaceEl.appendChild(ownerIndicator);
+                        hideModal();
+                        resolve();
+                    }});
+                }
+
+                showModal(
+                    `攻占选区？`,
+                    `<div class="text-center">
+                        <div class="font-bold text-xl mb-2">${space.name}</div>
+                        <div>所需选票:</div>
+                        <div class="text-sm grid grid-cols-2 text-left w-2/3 mx-auto">
+                            <span>巫裔: ${cost.malay}</span> <span class="${player.votes.malay < cost.malay ? 'text-red-500' : 'text-green-600'}">(你有 ${player.votes.malay})</span>
+                            <span>华裔: ${cost.chinese}</span> <span class="${player.votes.chinese < cost.chinese ? 'text-red-500' : 'text-green-600'}">(你有 ${player.votes.chinese})</span>
+                            <span>印裔: ${cost.indian}</span> <span class="${player.votes.indian < cost.indian ? 'text-red-500' : 'text-green-600'}">(你有 ${player.votes.indian})</span>
+                            <span>东马: ${cost.east_malaysian}</span> <span class="${player.votes.east_malaysian < cost.east_malaysian ? 'text-red-500' : 'text-green-600'}">(你有 ${player.votes.east_malaysian})</span>
+                        </div>
+                        ${!canBuy ? '<p class="text-red-500 mt-2 font-bold">选票不足！</p>' : ''}
+                    </div>`,
+                    actions
+                );
+            });
+        } else if (owner.id !== player.id) {
+            const rent = space.rent;
+            logMessage(`${player.name} 进入 ${owner.name} 的地盘, 需支付 $${rent} 租金。`);
+            player.cash -= rent;
+            owner.cash += rent;
+        }
+    }
+
+    async function handleCard(player, type) {
+        const cardDeck = type === 'chance' ? chanceCards : fateCards;
+        const card = cardDeck[Math.floor(Math.random() * cardDeck.length)];
+
+        await new Promise(resolve => {
+            showModal(
+                type === 'chance' ? '机会卡' : '命运卡',
+                `<p class="text-lg text-center">${card.text}</p>`,
+                [{ text: '好的', className: 'bg-blue-500', callback: async () => {
+                    hideModal();
+                    logMessage(`${player.name} 抽到卡片: ${card.text}`);
+                    switch (card.action) {
+                        case 'get-cash': player.cash += card.amount; break;
+                        case 'pay-cash': player.cash -= card.amount; break;
+                        case 'get-votes':
+                            for(const key in card.payload) player.votes[key] += card.payload[key];
+                            break;
+                        case 'move': 
+                            const oldPos = player.position;
+                            player.position = card.position;
+                            if (player.position < oldPos) {
+                                logMessage(`${player.name} 经过起点，获得 $2000 现金。`);
+                                player.cash += 2000;
+                            }
+                            await movePlayer(player, 0); // Redraw and trigger action
+                            break;
+                        case 'get-out-of-jail': player.getOutOfJailCards++; break;
+                        case 'go-to-jail': await goToJail(player); break;
+                        case 'move-relative': await movePlayer(player, card.amount); break;
+                        case 'collect-from-all':
+                            players.forEach(p => {
+                                if (p.id !== player.id) p.cash -= card.amount;
+                            });
+                            player.cash += card.amount * (players.length - 1);
+                            break;
+                    }
+                    updateAllUI();
+                    resolve();
+                }}]
+            );
+        });
+    }
+
+    async function goToJail(player) {
+        logMessage(`${player.name} 被送进监狱！`);
+        player.position = 12;
+        player.inJail = true;
+        player.jailTurns = 0;
+        updateAllUI();
+    }
+    
+    async function handleJailTurn(player) {
+        // This function would contain the logic for paying, using a card, or rolling doubles to get out.
+        // For simplicity, we'll just end the turn. The full logic can be a future enhancement.
+         logMessage(`${player.name} 在监狱里，本回合无法行动。`);
+         endTurn();
+    }
+
+    function endTurn() {
+        const activePlayers = players.filter(p => p.cash >= 0);
+        if (activePlayers.length <= 1) {
+            showModal("游戏结束！", `${activePlayers[0].name} 赢得大选！`, [{text: "再来一局", className: 'bg-green-500', callback: () => { location.reload(); }}]);
+            return;
+        }
+
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        while(players[currentPlayerIndex].cash < 0) {
+            logMessage(`${players[currentPlayerIndex].name} 已破产，跳过回合。`);
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }
+
+        logMessage(`轮到 ${players[currentPlayerIndex].name}。`);
+        turnInProgress = false;
+        rollDiceBtn.disabled = false;
+        rollDiceBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        updateAllUI();
+    }
+
+    function showModal(title, body, actions = []) {
+        modalTitleElement.textContent = title;
+        modalBodyElement.innerHTML = body;
+        modalActionsElement.innerHTML = '';
+        actions.forEach(action => {
+            const button = document.createElement('button');
+            button.textContent = action.text;
+            button.className = `px-4 py-2 rounded text-white font-semibold ${action.className}`;
+            button.onclick = action.callback;
+            modalActionsElement.appendChild(button);
+        });
+        modalElement.classList.remove('hidden');
+    }
+
+    function hideModal() {
+        modalElement.classList.add('hidden');
+    }
+
+    // --- 启动游戏 ---
+    initGame();
+});
+</script>
+
+</body>
+</html>

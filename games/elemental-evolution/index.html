@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素进化模拟器 (Elemental Evolution Sim)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* UI 容器样式 */
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+
+        /* 折叠状态 */
+        #ui-container.minimized {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            overflow: hidden;
+            border-radius: 50%;
+            cursor: pointer;
+            background: rgba(50, 50, 50, 0.9);
+            border: 2px solid #555;
+        }
+        
+        #ui-container.minimized h1, 
+        #ui-container.minimized .control-group, 
+        #ui-container.minimized .btn-group,
+        #ui-container.minimized .legend {
+            display: none;
+        }
+
+        /* 折叠按钮 */
+        .toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 20;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 20px;
+        }
+        .toggle-btn:hover { color: white; background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        /* 折叠后的图标 */
+        #ui-container.minimized::after {
+            content: "⚙️";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 15px 0;
+            text-align: center;
+            background: linear-gradient(90deg, #ff4d4d, #4dff4d, #4d4dff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            padding-right: 25px;
+        }
+
+        .control-group { margin-bottom: 12px; }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        input[type="range"] { width: 100%; cursor: pointer; height: 6px; border-radius: 3px; appearance: none; background: #444; }
+        
+        #input-fire { background: #5a1a1a; }
+        #input-fire::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #ff4444; cursor: pointer; }
+        
+        #input-water { background: #1a1a5a; }
+        #input-water::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4444ff; cursor: pointer; }
+        
+        #input-grass { background: #1a5a1a; }
+        #input-grass::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #44ff44; cursor: pointer; }
+
+        #input-speed { background: #333; }
+        #input-speed::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 2px; background: #fff; cursor: pointer; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;}
+        
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: transform 0.1s, filter 0.2s;
+            color: white;
+            min-width: 45%;
+        }
+
+        button:active { transform: scale(0.95); }
+        .btn-restart { background: linear-gradient(135deg, #4CAF50, #45a049); }
+        .btn-legendary { background: linear-gradient(135deg, #9C27B0, #673AB7); color: #fff; }
+        .btn-clear { background: linear-gradient(135deg, #777, #555); margin-top: 5px; width: 100%;}
+
+        #stats-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 3px solid transparent;
+            min-width: 60px;
+            justify-content: center;
+        }
+
+        .stat-fire { border-color: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.2); }
+        .stat-water { border-color: #4444ff; box-shadow: 0 0 10px rgba(68, 68, 255, 0.2); }
+        .stat-grass { border-color: #44ff44; box-shadow: 0 0 10px rgba(68, 255, 68, 0.2); }
+
+        /* 消息提示系统 */
+        #message-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            font-weight: 900;
+            text-shadow: 0 0 30px rgba(255,255,255,0.6);
+            display: none;
+            pointer-events: none;
+            z-index: 20;
+            text-align: center;
+            opacity: 1;
+            transition: opacity 2s ease-out; /* 2秒淡出动画 */
+        }
+
+        .pop-animation { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .legend {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #ccc;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 3px solid #888;
+        }
+        .legend-row { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+        .tutorial {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <!-- 移除 onclick 属性，改用纯 JS 控制，防止冲突 -->
+        <button class="toggle-btn" title="收起/展开">➖</button>
+        <h1>🔥 元素进化大乱斗 🌿</h1>
+        
+        <div class="control-group">
+            <label style="color:#ff6666">🔥 火系: <span id="val-fire">40</span></label>
+            <input type="range" id="input-fire" min="0" max="100" value="40">
+        </div>
+        <div class="control-group">
+            <label style="color:#6666ff">💧 水系: <span id="val-water">40</span></label>
+            <input type="range" id="input-water" min="0" max="100" value="40">
+        </div>
+        <div class="control-group">
+            <label style="color:#66ff66">🌿 草系: <span id="val-grass">40</span></label>
+            <input type="range" id="input-grass" min="0" max="100" value="40">
+        </div>
+        
+        <div class="control-group" style="margin-top: 20px; border-top: 1px solid #555; padding-top: 10px;">
+            <label style="color:#fff">⏱️ 游戏速度: <span id="val-speed">1.0</span>x</label>
+            <input type="range" id="input-speed" min="0.1" max="5.0" step="0.1" value="1.0">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-restart" onclick="initGame()">🔄 重新开始</button>
+            <button class="btn-legendary" onclick="spawnLegendary()">👾 召唤神兽</button>
+            <button class="btn-clear" onclick="clearTerrain()">🧹 清除地形</button>
+        </div>
+
+        <div class="legend">
+            <div><strong>地形操作:</strong></div>
+            <div class="tutorial">🖱️ <strong>左键拖拽</strong>: 绘制岩石墙壁</div>
+            <div class="tutorial">🖱️ <strong>右键拖拽</strong>: 擦除岩石</div>
+            <div style="margin-top:8px;"><strong>机制:</strong></div>
+            <div class="legend-row">🔥 > 🌿 > 💧 > 🔥</div>
+            <div class="legend-row">👾 击杀一切，碰撞50次后消失</div>
+        </div>
+    </div>
+
+    <div id="stats-bar">
+        <div class="stat-card stat-fire">🔥 <span id="count-fire">0</span></div>
+        <div class="stat-card stat-water">💧 <span id="count-water">0</span></div>
+        <div class="stat-card stat-grass">🌿 <span id="count-grass">0</span></div>
+    </div>
+
+    <div id="message-overlay"></div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // --- 游戏配置 ---
+    const TYPE = {
+        FIRE: 0,
+        WATER: 1,
+        GRASS: 2,
+        LEGENDARY: 99 // 特殊类型 ID
+    };
+
+    const EVOLUTION_CHAIN = {
+        [TYPE.FIRE]:  ['🔥', '🦁', '🐲'], 
+        [TYPE.WATER]: ['💧', '🦈', '🐳'], 
+        [TYPE.GRASS]: ['🌱', '🍄', '🌳']  
+    };
+
+    const COLORS = {
+        [TYPE.FIRE]: '#ff4444',
+        [TYPE.WATER]: '#4444ff',
+        [TYPE.GRASS]: '#44bb44',
+        [TYPE.LEGENDARY]: '#9C27B0' // 紫色
+    };
+
+    const CONFIG = {
+        baseSize: 18,
+        xpToEvolve: 3, 
+        maxLevel: 3,
+        timeScale: 1.0,
+        obstacleRadius: 15,
+        godMaxKills: 50 // 神兽最大击杀数（碰撞寿命）
+    };
+
+    let particles = [];
+    let obstacles = []; 
+    let animationId;
+    let counts = [0, 0, 0];
+    let isGameOver = false;
+    let uiMinimized = false;
+
+    // 鼠标交互状态
+    let mouse = { x: 0, y: 0, isDown: false, button: 0 };
+
+    // --- 粒子类 ---
+    class Creature {
+        constructor(x, y, type, level = 1, isLegendary = false) {
+            this.x = x;
+            this.y = y;
+            this.type = type;
+            this.level = level;
+            this.isLegendary = isLegendary;
+            this.xp = 0;
+            this.dead = false; // 标记是否死亡
+            
+            // 神兽属性：寿命 = 击杀次数
+            this.life = isLegendary ? CONFIG.godMaxKills : -1;
+            this.maxLife = CONFIG.godMaxKills;
+            
+            this.setStats();
+            
+            const angle = Math.random() * Math.PI * 2;
+            this.vx = Math.cos(angle) * this.speed;
+            this.vy = Math.sin(angle) * this.speed;
+            
+            this.cooldown = 0;
+            this.evolveAnim = 0;
+            this.auraAngle = 0; 
+        }
+
+        setStats() {
+            let sizeMult = 1 + (this.level - 1) * 0.4;
+            
+            if (this.isLegendary) {
+                // 神兽大小不再随时间变化，而是相对固定，随着“血量”稍微变小
+                const lifeRatio = Math.max(0.6, this.life / this.maxLife);
+                sizeMult *= 2.2 * lifeRatio; // 比以前更大
+                this.type = TYPE.LEGENDARY; // 确保类型ID独立
+            }
+
+            this.radius = (CONFIG.baseSize / 2) * sizeMult;
+            this.mass = this.level * (this.isLegendary ? 8 : 1); // 神兽极重，撞飞一切
+
+            let speedBase = 2.0;
+            if (this.type === TYPE.FIRE) speedBase = 2.4; 
+            if (this.type === TYPE.GRASS) speedBase = 1.8; 
+            if (this.type === TYPE.WATER) speedBase = 2.0;
+            if (this.isLegendary) speedBase = 3.0; // 神兽速度很快
+
+            // 神兽速度稍微快一点
+            this.speed = speedBase * (1 - (this.level-1)*0.1) * (this.isLegendary ? 1.0 : 1); 
+        }
+
+        gainXp() {
+            // 神兽不通过XP升级
+            if (this.isLegendary) return;
+
+            if (this.level < CONFIG.maxLevel) {
+                this.xp++;
+                if (this.xp >= CONFIG.xpToEvolve) {
+                    this.level++;
+                    this.xp = 0;
+                    this.evolveAnim = 30;
+                    this.setStats();
+                }
+            }
+        }
+
+        update() {
+            if (this.dead) return false;
+
+            const timeStep = CONFIG.timeScale;
+
+            // 寿命系统检查
+            if (this.isLegendary) {
+                // 如果碰撞寿命耗尽，返回 false (死亡)
+                if (this.life <= 0) {
+                    return false; 
+                }
+            }
+
+            // 移动
+            this.x += this.vx * timeStep;
+            this.y += this.vy * timeStep;
+
+            // 边界反弹
+            if (this.x - this.radius < 0) { this.x = this.radius; this.vx *= -1; }
+            else if (this.x + this.radius > canvas.width) { this.x = canvas.width - this.radius; this.vx *= -1; }
+
+            if (this.y - this.radius < 0) { this.y = this.radius; this.vy *= -1; }
+            else if (this.y + this.radius > canvas.height) { this.y = canvas.height - this.radius; this.vy *= -1; }
+
+            // 冷却
+            const cooldownDecay = ((this.type === TYPE.GRASS) ? 1.5 : 1) * timeStep;
+            if (this.cooldown > 0) this.cooldown -= cooldownDecay;
+            if (this.evolveAnim > 0) this.evolveAnim -= timeStep;
+            
+            if (this.isLegendary) this.auraAngle += 0.05 * timeStep;
+
+            return true; // 存活
+        }
+
+        draw() {
+            // 绘制神兽光环
+            if (this.isLegendary) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.auraAngle);
+                
+                // 击杀寿命指示 (从紫 -> 暗灰)
+                const lifeRatio = this.life / this.maxLife;
+                const auraAlpha = 0.3 + 0.5 * lifeRatio;
+                
+                // 外圈混乱光环
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 1.4, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(156, 39, 176, ${auraAlpha})`;
+                ctx.lineWidth = 4;
+                ctx.setLineDash([8, 4]);
+                ctx.stroke();
+                
+                // 内圈虚空
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 1.1, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(156, 39, 176, 0.15)`;
+                ctx.fill();
+                
+                ctx.restore();
+            }
+
+            if (this.evolveAnim > 0) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 200, ${Math.min(1, this.evolveAnim / 30)})`;
+                ctx.fill();
+            }
+
+            // 绘制 Emoji
+            let emoji = '👾'; // 默认神兽外观
+            if (!this.isLegendary) {
+                emoji = EVOLUTION_CHAIN[this.type][this.level - 1];
+            }
+
+            ctx.font = `${this.radius * 2}px Apple Color Emoji, Segoe UI Emoji, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            if (this.level === 3 || this.isLegendary) {
+                ctx.shadowColor = this.isLegendary ? '#9C27B0' : COLORS[this.type];
+                ctx.shadowBlur = this.isLegendary ? 30 : 15;
+            } else {
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fillText(emoji, this.x, this.y);
+            ctx.shadowBlur = 0;
+            
+            // 神兽显示剩余次数
+            if (this.isLegendary) {
+                 ctx.fillStyle = 'white';
+                 ctx.font = '10px Arial';
+                 ctx.fillText(Math.ceil(this.life), this.x, this.y - this.radius - 8);
+            }
+        }
+    }
+
+    // --- 核心逻辑 ---
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+
+    function toggleUI() {
+        const ui = document.getElementById('ui-container');
+        const btn = document.querySelector('.toggle-btn');
+        uiMinimized = !uiMinimized;
+        
+        if (uiMinimized) {
+            ui.classList.add('minimized');
+            btn.innerHTML = ''; 
+        } else {
+            ui.classList.remove('minimized');
+            btn.innerHTML = '➖';
+        }
+    }
+    
+    document.querySelector('.toggle-btn').addEventListener('click', function(e) {
+        e.stopPropagation(); 
+        toggleUI();
+    });
+
+    document.getElementById('ui-container').addEventListener('click', function(e) {
+        if (uiMinimized) toggleUI();
+    });
+
+    function initGame() {
+        resize();
+        isGameOver = false;
+        document.getElementById('message-overlay').style.display = 'none';
+        
+        const fCount = parseInt(document.getElementById('input-fire').value);
+        const wCount = parseInt(document.getElementById('input-water').value);
+        const gCount = parseInt(document.getElementById('input-grass').value);
+
+        particles = [];
+
+        spawnType(TYPE.FIRE, fCount);
+        spawnType(TYPE.WATER, wCount);
+        spawnType(TYPE.GRASS, gCount);
+
+        if (animationId) cancelAnimationFrame(animationId);
+        loop();
+    }
+
+    function spawnType(type, count) {
+        for (let i = 0; i < count; i++) {
+            let x, y, r = CONFIG.baseSize;
+            let attempts = 0;
+            do {
+                x = Math.random() * (canvas.width - r*2) + r;
+                y = Math.random() * (canvas.height - r*2) + r;
+                
+                // 修复：确保不生成在 UI 面板下面 (左上角区域保护)
+                if (!uiMinimized && x < 320 && y < 600) {
+                     attempts++;
+                     continue;
+                }
+                
+                attempts++;
+            } while (isInsideObstacle(x, y, r) && attempts < 20);
+            
+            particles.push(new Creature(x, y, type, 1));
+        }
+    }
+
+    function isInsideObstacle(x, y, r) {
+        for (let obs of obstacles) {
+            const dx = x - obs.x;
+            const dy = y - obs.y;
+            if (dx*dx + dy*dy < (r + obs.r)*(r + obs.r)) return true;
+        }
+        return false;
+    }
+
+    function showMessage(text, color) {
+        const overlay = document.getElementById('message-overlay');
+        overlay.innerText = text;
+        overlay.style.color = color;
+        overlay.style.display = 'block';
+        overlay.style.opacity = '1'; // 重置透明度
+        overlay.className = 'pop-animation';
+        
+        // 慢速淡出逻辑
+        if (text === "神兽降临！") {
+            setTimeout(() => {
+                overlay.style.opacity = '0'; // 触发 CSS transition
+            }, 1000); // 显示1秒后开始变淡
+
+            setTimeout(() => {
+                if (overlay.innerText === "神兽降临！") { // 防止覆盖了新消息
+                    overlay.style.display = 'none';
+                }
+            }, 3000); // 1秒显示 + 2秒动画
+        }
+    }
+
+    function spawnLegendary() {
+        const r = CONFIG.baseSize * 3;
+        let x, y;
+        let attempts = 0;
+        
+        do {
+            x = Math.random() * (canvas.width - r*2) + r;
+            y = Math.random() * (canvas.height - r*2) + r;
+            if (!uiMinimized && x < 320 && y < 600) continue; 
+            attempts++;
+        } while (isInsideObstacle(x, y, r) && attempts < 20);
+
+        // 创建传说单位 (level 3, isLegendary = true, type = LEGENDARY)
+        const boss = new Creature(x, y, TYPE.LEGENDARY, 3, true);
+        boss.evolveAnim = 60;
+        
+        particles.push(boss);
+        showMessage("神兽降临！", "#9C27B0");
+    }
+
+    function clearTerrain() {
+        obstacles = [];
+    }
+
+    // --- 碰撞系统 ---
+
+    function beats(typeA, typeB) {
+        if (typeA === TYPE.FIRE && typeB === TYPE.GRASS) return true;
+        if (typeA === TYPE.GRASS && typeB === TYPE.WATER) return true;
+        if (typeA === TYPE.WATER && typeB === TYPE.FIRE) return true;
+        return false;
+    }
+
+    function checkCollisions() {
+        // 1. 粒子 vs 障碍物
+        for (let p of particles) {
+            for (let obs of obstacles) {
+                const dx = p.x - obs.x;
+                const dy = p.y - obs.y;
+                const distSq = dx*dx + dy*dy;
+                const minDist = p.radius + obs.r;
+                
+                if (distSq < minDist * minDist) {
+                    const dist = Math.sqrt(distSq);
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const overlap = minDist - dist;
+                    p.x += nx * overlap;
+                    p.y += ny * overlap;
+                    
+                    const dot = p.vx * nx + p.vy * ny;
+                    if (dot < 0) {
+                        p.vx = p.vx - 2 * dot * nx;
+                        p.vy = p.vy - 2 * dot * ny;
+                        p.vx *= 0.9;
+                        p.vy *= 0.9;
+                    }
+                }
+            }
+        }
+
+        // 2. 粒子 vs 粒子
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const p1 = particles[i];
+                const p2 = particles[j];
+
+                // 忽略已死亡单位（在下一帧才会被移除）
+                if (p1.dead || p2.dead) continue;
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const distSq = dx*dx + dy*dy;
+                const minDist = p1.radius + p2.radius;
+
+                if (distSq < minDist * minDist) {
+                    const dist = Math.sqrt(distSq);
+                    resolveParticleCollision(p1, p2, dx, dy, dist, minDist);
+                }
+            }
+        }
+    }
+
+    function resolveParticleCollision(p1, p2, dx, dy, dist, minDist) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const overlap = minDist - dist;
+        const totalMass = p1.mass + p2.mass;
+        const m1Ratio = p2.mass / totalMass;
+        const m2Ratio = p1.mass / totalMass;
+
+        p1.x -= nx * overlap * m1Ratio;
+        p1.y -= ny * overlap * m1Ratio;
+        p2.x += nx * overlap * m2Ratio;
+        p2.y += ny * overlap * m2Ratio;
+
+        const v1n = p1.vx * nx + p1.vy * ny;
+        const v2n = p2.vx * nx + p2.vy * ny;
+
+        const v1nPost = ((p1.mass - p2.mass) * v1n + 2 * p2.mass * v2n) / totalMass;
+        const v2nPost = ((p2.mass - p1.mass) * v2n + 2 * p1.mass * v1n) / totalMass;
+
+        p1.vx += nx * (v1nPost - v1n);
+        p1.vy += ny * (v1nPost - v1n);
+        p2.vx += nx * (v2nPost - v2n);
+        p2.vy += ny * (v2nPost - v2n);
+
+        if (p1.cooldown > 0 || p2.cooldown > 0) return;
+
+        // --- 碰撞胜负逻辑 ---
+
+        let winner = null;
+        let loser = null;
+
+        // A. 神兽逻辑：神兽无视属性，击杀一切普通单位
+        if (p1.isLegendary && !p2.isLegendary) { winner = p1; loser = p2; }
+        else if (p2.isLegendary && !p1.isLegendary) { winner = p2; loser = p1; }
+        
+        // B. 普通单位逻辑：按属性克制
+        else if (!p1.isLegendary && !p2.isLegendary && p1.type !== p2.type) {
+            if (beats(p1.type, p2.type)) { winner = p1; loser = p2; }
+            else if (beats(p2.type, p1.type)) { winner = p2; loser = p1; }
+        }
+
+        if (winner && loser) {
+            // 如果是神兽获胜
+            if (winner.isLegendary) {
+                // 1. 消耗神兽寿命
+                winner.life--; 
+                winner.setStats(); // 更新体型
+
+                // 2. 败者彻底死亡 (FIX: 不再随机变身，而是直接移除)
+                loser.dead = true;
+            } 
+            // 如果是普通单位获胜 (属性克制)
+            else {
+                loser.type = winner.type;
+                loser.level = 1;
+                loser.xp = 0;
+                loser.setStats();
+                winner.gainXp();
+            }
+
+            p1.cooldown = 15;
+            p2.cooldown = 15;
+        }
+    }
+
+    function updateStats() {
+        counts = [0, 0, 0];
+        // 统计时忽略神兽
+        particles.forEach(p => {
+            if (!p.isLegendary && !p.dead && p.type <= 2) {
+                counts[p.type]++;
+            }
+        });
+
+        document.getElementById('count-fire').innerText = counts[TYPE.FIRE];
+        document.getElementById('count-water').innerText = counts[TYPE.WATER];
+        document.getElementById('count-grass').innerText = counts[TYPE.GRASS];
+
+        if (!isGameOver) {
+            // FIX: 胜利条件判定
+            // 只要活跃的属性类型只有1个，就判定胜利（无论是否有神兽）
+            const activeTypes = counts.filter(c => c > 0).length;
+            
+            // 必须场上还有普通粒子(>0)且只有1种属性
+            if (activeTypes === 1 && counts.reduce((a,b)=>a+b, 0) > 0) {
+                isGameOver = true;
+                let text = "";
+                let color = "";
+                if (counts[TYPE.FIRE] > 0) { text = "🔥 火系主宰一切!"; color="#ff4444"; }
+                if (counts[TYPE.WATER] > 0) { text = "💧 水系淹没世界!"; color="#4444ff"; }
+                if (counts[TYPE.GRASS] > 0) { text = "🌿 草系覆盖大地!"; color="#44ff44"; }
+                
+                showMessage(text, color);
+            }
+        }
+    }
+
+    // --- 绘制地形 ---
+    function handleMouseDraw() {
+        if (mouse.x < 300 && mouse.y < 600 && !uiMinimized) return;
+
+        if (mouse.isDown) {
+            if (mouse.button === 0) { 
+                let tooClose = false;
+                for (let obs of obstacles) {
+                    const dx = mouse.x - obs.x;
+                    const dy = mouse.y - obs.y;
+                    if (dx*dx + dy*dy < (CONFIG.obstacleRadius/2)*(CONFIG.obstacleRadius/2)) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (!tooClose) {
+                    obstacles.push({x: mouse.x, y: mouse.y, r: CONFIG.obstacleRadius});
+                }
+            } else if (mouse.button === 2) { 
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const dx = mouse.x - obstacles[i].x;
+                    const dy = mouse.y - obstacles[i].y;
+                    if (dx*dx + dy*dy < 900) { 
+                        obstacles.splice(i, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        handleMouseDraw();
+
+        // 绘制背景网格
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 1;
+        const gridSize = 50;
+        ctx.beginPath();
+        for(let x=0; x<canvas.width; x+=gridSize) { ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); }
+        for(let y=0; y<canvas.height; y+=gridSize) { ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); }
+        ctx.stroke();
+
+        // 绘制地形
+        ctx.fillStyle = '#666';
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 2;
+        for (let obs of obstacles) {
+            ctx.beginPath();
+            ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // 更新并移除死亡单位 (如碰撞寿命耗尽的神兽)
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const alive = particles[i].update();
+            if (!alive) {
+                particles.splice(i, 1);
+            }
+        }
+
+        checkCollisions();
+        particles.forEach(p => p.draw());
+
+        updateStats();
+
+        animationId = requestAnimationFrame(loop);
+    }
+
+    // UI Listeners
+    document.querySelectorAll('input[type="range"]').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idParts = e.target.id.split('-');
+            if (idParts[1] === 'speed') {
+                CONFIG.timeScale = parseFloat(e.target.value);
+                document.getElementById('val-speed').innerText = CONFIG.timeScale.toFixed(1);
+            } else {
+                const spanId = 'val-' + idParts[1];
+                document.getElementById(spanId).innerText = e.target.value;
+            }
+        });
+    });
+
+    // 鼠标事件
+    canvas.addEventListener('mousedown', e => {
+        mouse.isDown = true;
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.button = e.button;
+    });
+    canvas.addEventListener('mousemove', e => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+    window.addEventListener('mouseup', () => {
+        mouse.isDown = false;
+    });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    initGame();
+
+</script>
+</body>
+</html>

@@ -16,7 +16,62 @@ const games = [
     genre: "Arcade",
     color: "#050505",
     path: "games/neon-dragon/index.html",
-    playtime: "5–15 min"
+    playtime: "5–15 min",
+    icon: "🐉"
+  },
+  {
+    id: "elemental-evolution",
+    title: "元素进化大乱斗",
+    genre: "Simulation",
+    color: "#1a3a1a",
+    path: "games/elemental-evolution/index.html",
+    playtime: "∞",
+    icon: "⚡"
+  },
+  {
+    id: "emojimon",
+    title: "EmojiMon Adventure",
+    genre: "RPG",
+    color: "#0f380f",
+    path: "games/emojimon/index.html",
+    playtime: "10–30 min",
+    icon: "⚔️"
+  },
+  {
+    id: "zippo-lighter",
+    title: "IGNIS Lighter",
+    genre: "Toy",
+    color: "#1a1200",
+    path: "games/zippo-lighter/index.html",
+    playtime: "∞",
+    icon: "🔥"
+  },
+  {
+    id: "blackjack",
+    title: "Royal Blackjack",
+    genre: "Card Game",
+    color: "#052e16",
+    path: "games/blackjack/index.html",
+    playtime: "5–20 min",
+    icon: "♠️"
+  },
+  {
+    id: "monopoly-malaysia",
+    title: "大富翁：议会之路",
+    genre: "Strategy",
+    color: "#1e3a5f",
+    path: "games/monopoly-malaysia/index.html",
+    playtime: "30–60 min",
+    icon: "🏛️"
+  },
+  {
+    id: "bomberman",
+    title: "炸弹人",
+    genre: "Arcade",
+    color: "#1a1a1a",
+    path: "games/bomberman/index.html",
+    playtime: "5–15 min",
+    icon: "💣"
   }
 ];
 
@@ -47,10 +102,8 @@ function updateCount() {
 /* ---- Featured card ---- */
 function renderFeatured(game) {
   featCard.innerHTML = `
-    <div class="featured-card-art" style="background-color: ${game.color}22;">
-      <div class="art-grid" aria-hidden="true">
-        ${Array(9).fill('<span></span>').join('')}
-      </div>
+    <div class="featured-card-art" style="background:radial-gradient(ellipse at 50% 65%, ${game.color}55 0%, ${game.color}18 65%), ${game.color}0d;">
+      <span class="card-art-icon card-art-icon--lg" aria-hidden="true">${game.icon || '🎮'}</span>
     </div>
     <div class="featured-card-info">
       <span class="card-genre-tag">${escHtml(game.genre)}</span>
@@ -87,8 +140,8 @@ function renderGrid() {
     card.setAttribute('aria-label', `Play ${game.title}`);
 
     card.innerHTML = `
-      <div class="card-art" style="background-color: ${game.color}18;">
-        <div class="art-dot-grid" aria-hidden="true"></div>
+      <div class="card-art" style="background:radial-gradient(ellipse at 50% 65%, ${game.color}44 0%, ${game.color}14 70%), ${game.color}0a;">
+        <span class="card-art-icon" aria-hidden="true">${game.icon || '🎮'}</span>
       </div>
       <div class="card-body">
         <span class="card-title">${escHtml(game.title)}</span>
@@ -123,16 +176,18 @@ function renderGrid() {
   // Pad to at least 6 slots with empty cards
   const empties = Math.max(0, 6 - games.length);
   for (let i = 0; i < empties; i++) {
-    gameGrid.innerHTML += `
-      <div class="game-card game-card--empty" aria-label="Empty slot">
-        <div class="card-art placeholder-art">
-          <div class="art-dot-grid" aria-hidden="true"></div>
-        </div>
-        <div class="card-body">
-          <span class="card-empty-label">Open slot</span>
-        </div>
+    const empty = document.createElement('div');
+    empty.className = 'game-card game-card--empty';
+    empty.setAttribute('aria-label', 'Empty slot');
+    empty.innerHTML = `
+      <div class="card-art placeholder-art">
+        <div class="art-dot-grid" aria-hidden="true"></div>
+      </div>
+      <div class="card-body">
+        <span class="card-empty-label">Open slot</span>
       </div>
     `;
+    gameGrid.appendChild(empty);
   }
 }
 
